@@ -22,7 +22,7 @@ classdef CameraGrid < handle
     methods
         function obj = CameraGrid(opts)
             arguments
-                opts.pixel_size (1,1) double {mustBeNumeric, mustBePositive} = 5e-6
+                opts.pixel_size (1,1) double {mustBeNumeric, mustBePositive} = 5.04e-6
                 opts.pixel_numbers (1,2) double {mustBeNumeric, mustBePositive} = [128, 128]
                 opts.offsets (1,2) double {mustBeNumeric} = [0, 0]
             end
