@@ -1,5 +1,5 @@
 dset_file = 'C:\Users\saucourt\Datasets\data_base_02_03_0deg.mat';
-[x, y, s] = getDatasetCentroid(dset_file);
+[x, y, s, em] = getDatasetCentroid(dset_file);
 
 
 %%
@@ -16,8 +16,12 @@ dset = GrinLPDataset(fiber, grid, N_modes=5000, noise=0.01);
 intens = dset.intensity;
 
 %%
+img = dset.intensity(:,:,22);
+en = sum(img, "all");
+img = img/en*em;
+
 figure(2)
-imagesc(dset.intensity(:,:,29))
+imagesc(img)
 colorbar
 
 figure(3)

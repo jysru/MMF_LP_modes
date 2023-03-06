@@ -1,4 +1,4 @@
-function [x, y, s] = getDatasetCentroid(dset_path)
+function [x, y, s, em] = getDatasetCentroid(dset_path)
     % Gets the center of gravity of intensity images from a dataset
     arguments
         dset_path char
@@ -9,11 +9,14 @@ function [x, y, s] = getDatasetCentroid(dset_path)
 
     % Get the sum of all images
     s = 0;
-    for i=1:size(dset.CP, 1)
-        for j=1:size(dset.CP, 2)
-            s = s + dset.CP{i, j};
-        end
+    for i=1:numel(dset.CP)
+        s = s + dset.CP{i};
     end
+    s = s / numel(dset.CP);
+
+    % Get energies
+    sum_intens = cellfun(@(x) sum(x, 'all'), dset.CP);
+    em = mean(sum_intens, 'all');
 
     % Normalize and get the total sum
     s = s / max(s, [], 'all');
