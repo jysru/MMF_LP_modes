@@ -16,3 +16,6 @@ mode.plot(fig_num=1);
 speckle = GrinSpeckle(fiber, grid, noise=0.02, N_modes=25);
 speckle.plot(fig_num=2)
 
+
+%% Generate dataset of individual LP modes
+dset = GrinLPDataset(fiber, grid, N_modes=opts.N_modes, noise=opts.noise);
