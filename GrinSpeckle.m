@@ -62,7 +62,7 @@ classdef GrinSpeckle < handle
 
                 mode = GrinLPMode(n, m);
                 mode.compute(obj.fiber, obj.grid);
-
+                
                 champ0(:,:,i) = mode.fields(:,:,1);
                 champ90(:,:,i) = mode.fields(:,:,2);
             end
@@ -88,9 +88,11 @@ classdef GrinSpeckle < handle
                 opts.fig_num (1,1) double {mustBePositive, mustBeInteger} = 1
                 opts.colormap char = 'hot'
             end
+            r = obj.fiber.radius*1e6;
 
             hfig = figure(opts.fig_num); clf
                 imagesc(obj.grid.x*1e6, obj.grid.y*1e6, obj.intensity)
+                rectangle('Position',[-r, -r, 2*r, 2*r], 'EdgeColor','w', 'Curvature',1, 'LineWidth',1.5);
                 axis square
                 colorbar
                 colormap(opts.colormap)

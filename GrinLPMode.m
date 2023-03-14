@@ -14,6 +14,11 @@ classdef GrinLPMode < handle
         fm
     end
 
+    properties (GetAccess = public, SetAccess = private)
+        x
+        y
+        radius
+    end
 
     properties (Dependent)
         intensities
@@ -44,6 +49,10 @@ classdef GrinLPMode < handle
                 fiber (1,1) GrinFiber
                 grid (1,1) CameraGrid
             end
+
+            obj.radius = fiber.radius;
+            obj.x = grid.x;
+            obj.y = grid.y;
 
             fac_n = factorial(obj.fn);
             fac_m_plus_n = factorial(obj.fm + obj.fn);
@@ -87,17 +96,20 @@ classdef GrinLPMode < handle
                 obj (1,1) GrinLPMode
                 opts.fig_num (1,1) double {mustBePositive, mustBeInteger} = 1
             end
+            r = obj.radius*1e6;
 
             hfig = figure(opts.fig_num); clf
             subplot(1,2,1)
-                imagesc(squeeze(obj.fields(:,:,1)))
+                imagesc(obj.x*1e6, obj.y*1e6, squeeze(obj.fields(:,:,1)))
+                rectangle('Position',[-r, -r, 2*r, 2*r], 'EdgeColor','w', 'Curvature',1, 'LineWidth',1.5);
                 axis square
                 colorbar
                 title(['LP_' num2str(obj.n) '_,_' num2str(obj.m) ' (0 deg)'])
                 xlabel('x [um]')
                 ylabel('y [um]')
             subplot(1,2,2)
-                imagesc(squeeze(obj.fields(:,:,2)))
+                imagesc(obj.x*1e6, obj.y*1e6, squeeze(obj.fields(:,:,2)))
+                rectangle('Position',[-r, -r, 2*r, 2*r], 'EdgeColor','w', 'Curvature',1, 'LineWidth',1.5);
                 axis square
                 colorbar
                 title(['LP_' num2str(obj.n) '_,_' num2str(obj.m) ' (90 deg)'])
