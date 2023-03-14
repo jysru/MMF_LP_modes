@@ -51,7 +51,6 @@ classdef GrinLPDataset < handle
 
                 champ(:,:,2*(i-1)+1) = mode.fields(:,:,1);
                 champ(:,:,2*(i-1)+2) = mode.fields(:,:,2);
-                
             end
 
             obj.field = champ;
