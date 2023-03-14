@@ -75,7 +75,7 @@ classdef GrinSpeckle < handle
                 
                 if n == 0 % Centro-symmetric mode
                     field = field + champ0(:,:,i) * Cp;
-                else % Non centro-symmetric mode -> Split power randomly on degenerates
+                else % Non centro-symmetric mode -> Split power randomly on degenerates, energy sum must be 2x
                     r = rand();
                     Cp1 = sqrt(2) * Cp * sqrt(r) * exp(1i * 2*pi* rand());
                     Cp2 = sqrt(2) * Cp * sqrt(1-r) * exp(1i * 2*pi* rand());
