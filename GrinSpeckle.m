@@ -4,7 +4,7 @@ classdef GrinSpeckle < handle
     properties (SetAccess = private, GetAccess = public)
         N_modes
         modes_coeffs
-        polar_coeffs
+        orient_coeffs
         fiber
         grid
         field
@@ -43,11 +43,11 @@ classdef GrinSpeckle < handle
             Ip = Ip./sum(Ip, 1);
         
             % Generate random phases
-            Phip = 2*pi*rand(obj.N_modes, 1) - pi;
+            Phip = 2*pi*rand(obj.N_modes, 1);
         
             % Get the complex coefficients
             obj.modes_coeffs = sqrt(Ip) .* exp(1i * Phip);
-            obj.polar_coeffs = rand(obj.N_modes, 1);
+            obj.orient_coeffs = rand(obj.N_modes, 1);
         end
 
 
@@ -66,12 +66,24 @@ classdef GrinSpeckle < handle
                 champ0(:,:,i) = mode.fields(:,:,1);
                 champ90(:,:,i) = mode.fields(:,:,2);
             end
-
-            Cp = reshape(obj.modes_coeffs, [1, 1, length(obj.modes_coeffs)]);
-            Cpol = reshape(obj.polar_coeffs, [1, 1, length(obj.polar_coeffs)]);
-
-            obj.field = sum(champ0.*Cp.*sqrt(Cpol) + champ90.*Cp.*sqrt(1-Cpol), 3);
-            obj.field = obj.field / max(abs(obj.field), [], 'all');
+            
+            field = 0;
+            for i=1:obj.N_modes
+                n = obj.fiber.neff_hnm(i, 3);                
+                Cp = obj.modes_coeffs(i);
+                Cor = obj.orient_coeffs(i);
+                
+                if n == 0 % Centro-symmetric mode
+                    field = field + champ0(:,:,i) * Cp;
+                else % Non centro-symmetric mode -> Split power randomly on degenerates
+                    r = rand();
+                    Cp1 = sqrt(2) * Cp * sqrt(r) * exp(1i * 2*pi* rand());
+                    Cp2 = sqrt(2) * Cp * sqrt(1-r) * exp(1i * 2*pi* rand());
+                    field = field + Cp1 * (champ0(:,:,i) * sqrt(Cor) + champ90(:,:,i) * sqrt(1-Cor));
+                    field = field + Cp2 * (champ0(:,:,i) * sqrt(r) + champ90(:,:,i) * sqrt(1-r));
+                end
+            end
+            obj.field = field / max(abs(field), [], 'all');
         end
 
 
