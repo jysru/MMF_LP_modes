@@ -4,8 +4,10 @@ function syntethic_dataset_from_experiment(file, opts)
         opts.magnification (1,1) double {mustBeNumeric, mustBeNonzero} = 12.62
         opts.camera_pixel_size (1,1) double {mustBeNumeric, mustBePositive} = 5.04e-6
         opts.N_modes (1,1) double {mustBeNumeric, mustBePositive} = 20
+        opts.length (1,1) double {mustBeNumeric, mustBePositive} = 32
         opts.noise (1,1) double {mustBeNumeric, mustBeNonnegative} = 0
         opts.normalize (1,1) logical {mustBeNumericOrLogical} = true
+        opts.type char {mustBeMember(opts.type, {'pure', 'speckle'})} = 'pure'
 
         opts.show_results (1,1) logical {mustBeNumericOrLogical} = false
         opts.save_results (1,1) logical {mustBeNumericOrLogical} = true
@@ -36,7 +38,11 @@ function syntethic_dataset_from_experiment(file, opts)
         opts.N_modes = fiber.N_modes;
     end
 
-    dset = GrinLPDataset(fiber, grid, N_modes=opts.N_modes, noise=opts.noise);
+    if strcmpi(opts.type, 'pure')
+        dset = GrinLPDataset(fiber, grid, N_modes=opts.N_modes, noise=opts.noise);
+    else
+        dset = GrinLPSpeckleDataset(fiber, grid, N_modes=opts.N_modes, noise=opts.noise, length=opts.length);
+    end
     intens = dset.intensity;
 
 
@@ -53,11 +59,17 @@ function syntethic_dataset_from_experiment(file, opts)
     % Save results if flag is true
     if opts.save_results
         if strcmp(opts.save_name, '')
-            prefix = 'synth_dset';
-            str_N_modes = num2str(opts.N_modes, '%d');
-            str_noise = num2str(opts.noise, '%.3f');
-            ds_name = fullfile(stats.name);
-            save_name = [prefix '_modes=' str_N_modes '_noise=' str_noise '_ds=' ds_name];
+            prefix = ['synth_dset_',  opts.type];
+            suffix = '.mat';
+            str_N_modes = ['_modes=', num2str(opts.N_modes, '%d')];
+            str_noise = ['_noise=', num2str(opts.noise, '%.3f')];
+            ds_name = ['_ds=', fullfile(stats.name)];
+            if strcmpi(opts.type, 'pure')
+                len = '';
+            else
+                len = ['_length=', num2str(opts.length, '%d')];
+            end
+            save_name = [prefix, str_N_modes,  str_noise, len, ds_name];
         else
             save_name = opts.save_name;
         end
@@ -70,7 +82,7 @@ function syntethic_dataset_from_experiment(file, opts)
 
         centroid = [xp, yp];
         energy = stats.energy;
-        fullpath = fullfile(save_path, [save_name, stats.ext]);
+        fullpath = fullfile(save_path, [save_name, suffix]);
         save(fullpath, 'intens', 'centroid', 'energy', '-v6');
     end
 
