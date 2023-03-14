@@ -1,5 +1,5 @@
 classdef GrinLPDataset < handle
-    % Speckle from GRIN fiber
+    % Pure modes from GRIN fiber
     
     properties (SetAccess = private, GetAccess = public)
         N_modes
