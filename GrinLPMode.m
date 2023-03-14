@@ -68,13 +68,14 @@ classdef GrinLPMode < handle
             obj.fields(:,:,2) = fac1.*fac2.*fac3.*Lnm.*cos(obj.fm*grid.A + obj.theta0 + pi/2);
 
             obj.fields(:,:,1) = obj.fields(:,:,1);
-            obj.fields(:,:,2) = obj.fields(:,:,2) / max(obj.fields(:,:,2), [], 'all') * max(obj.fields(:,:,1), [], 'all');
+            obj.fields(:,:,2) = obj.fields(:,:,2) / max(abs(obj.fields(:,:,2)), [], 'all') * max(abs(obj.fields(:,:,1)), [], 'all');
         end
         
 
         function val = get.intensities(obj)
             val = abs(obj.fields).^2;
         end
+
 
         function val = get.energies(obj)
             val = squeeze(sum(obj.intensities, [1, 2]));

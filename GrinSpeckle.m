@@ -43,7 +43,7 @@ classdef GrinSpeckle < handle
             Ip = Ip./sum(Ip, 1);
         
             % Generate random phases
-            Phip = -pi + 2*pi*rand(obj.N_modes, 1);
+            Phip = 2*pi*rand(obj.N_modes, 1) - pi;
         
             % Get the complex coefficients
             obj.modes_coeffs = sqrt(Ip) .* exp(1i * Phip);
@@ -70,7 +70,7 @@ classdef GrinSpeckle < handle
             Cp = reshape(obj.modes_coeffs, [1, 1, length(obj.modes_coeffs)]);
             Cpol = reshape(obj.polar_coeffs, [1, 1, length(obj.polar_coeffs)]);
 
-            obj.field = sum(champ0.*Cp.*Cpol + champ90.*Cp.*(1-Cpol), 3);
+            obj.field = sum(champ0.*Cp.*sqrt(Cpol) + champ90.*Cp.*sqrt(1-Cpol), 3);
             obj.field = obj.field / max(abs(obj.field), [], 'all');
         end
 
