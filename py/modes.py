@@ -1,69 +1,85 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-def modes_factorial(idx: int):
-    fac = 1
-    if idx==0:
-        fac = 1
-    else:
-        for i in range(1, idx+1):
-            fac *= i
-    return fac
+from grid import CameraGrid
+from fiber import GrinFiber
 
+class GrinLPMode():
 
-def modes_grin(m, n,
-               n1:float=1.465, n2: float=1.45,
-               wavelength: float=1064e-9, a: float=26e-6,
-               theta0_deg: float=0,
-               ):
+    def __init__(self, n: int, m: int, theta0: float = 0) -> None:
+        self.n = n
+        self.m = m
+        self.theta0 = theta0 * np.pi / 180
+        self._radius = None
+        self._x = None
+        self._y = None
+        self._fields = None
+
+    def compose(self, fiber: GrinFiber, grid: CameraGrid):
+        self._radius = fiber.radius
+        self._x = grid.x
+        self._y = grid.y
+
+        fac_n = np.math.factorial(self._fn)
+        fac_m_plus_n = np.math.factorial(self._fm + self._fn)
+
+        delta0m = 1 if self._fm==0 else 0
+        epsilon_mn = np.pi * np.square(fiber.radius) * fac_m_plus_n * (1 + delta0m) / (2 * fiber._V * fac_n)
+        ro = np.array(grid.R / fiber.radius * np.sqrt(fiber._V)).astype(float)
+
+        Lmn = 0
+        for s in range(self._fn + 1):
+            num = fac_m_plus_n * np.power(-1, s) * np.power(ro, 2 * s)
+            denom = np.math.factorial(self._fm + s) * np.math.factorial(self._fn - s) * np.math.factorial(s)
+            Lmn += num / denom
+
+        fac1 = 1 / np.sqrt(epsilon_mn)
+        fac2 = np.power(ro, self._fm)
+        fac3 = np.exp(-np.square(ro) / 2)
+
+        self._fields = np.zeros(shape=(len(grid.x), len(grid.y), 2))
+        self._fields[:,:,0] = fac1 * fac2 * fac3 * Lmn * np.cos(self._fm * grid.A + self.theta0)
+        self._fields[:,:,1] = fac1 * fac2 * fac3 * Lmn * np.cos(self._fm * grid.A + self.theta0 + np.pi / 2 )
+        self._fields[:,:,1] = self._fields[:,:,1] / np.max(np.abs(self._fields[:,:,1])) * np.max(np.abs(self._fields[:,:,0]))
+
+    @property
+    def _fn(self):
+        return self.m - 1
     
-    # n += 1
-    theta0 = theta0_deg * np.pi / 180
-    NA = np.sqrt(np.square(n1) - np.square(n2))
-    V = 2 * np.pi * a * NA / wavelength
+    @property
+    def _fm(self):
+        return self.n
     
-    # Compute factorials for n
-    facn = modes_factorial(n)
-    facm_plus_n = modes_factorial(m+n)
-
-    # Compute Kronecker delta0m and epsilon
-    delta0m = 1 if m==0 else 0
-    epsilon_mn = np.pi * np.square(a) * facm_plus_n * (1+delta0m) / (2*V*facn)
-
-    # Compute scalar field
-    xmax = 1.2 * a
-    nbre_pts = 4 * 512
-
-    x = np.linspace(-xmax, xmax, nbre_pts)
-    X, Y = np.meshgrid(x, x)
-    R = np.sqrt(np.square(X) + np.square(Y))
-    ro = R / a * np.sqrt(V)
-    Theta = np.arctan2(Y, X)
+    @property
+    def intensities(self):
+        return np.square(np.abs(self._fields))
     
-    Lnm = 0
-    for s in range(0, n+1):
-        facs = modes_factorial(s)
-        facn_moins_s = modes_factorial(n-s)
-        facm_plus_s = modes_factorial(m+s)
+    @property
+    def energies(self):
+        return np.sum(self.intensities, axis=(0,1))
+    
+    def plot(self, fignum: int = 1):
+        r = self._radius * 1e6
+        extent = np.array([np.min(self._x), np.max(self._x), np.min(self._y), np.max(self._y)]) * 1e6
+        str_mode = f"{self.n,self.m}"
 
-        num = facm_plus_n * np.power(-1, s) * np.power(ro, 2*s)
-        denom = facm_plus_s * facn_moins_s * facs
-        Lnm += num / denom
+        fig, axs = plt.subplots(1, 2, figsize=(12,4))
+        pl0 = axs[0].imshow(self._fields[:,:,0], extent=extent, cmap="bwr")
+        pl1 = axs[1].imshow(self._fields[:,:,1], extent=extent, cmap="bwr")
+        axs[0].set_xlabel("x [um]")
+        axs[1].set_xlabel("x [um]")
+        axs[0].set_ylabel("y [um]")
+        axs[1].set_ylabel("y [um]")
+        axs[0].set_title(f"LP{str_mode}")
+        axs[0].set_title(f"LP{str_mode}")
+        plt.colorbar(pl0, ax=axs[0])
+        plt.colorbar(pl1, ax=axs[1])
 
-    # Field computation
-    fac1 = 1 / np.sqrt(epsilon_mn)
-    fac2 = np.power(ro, m)
-    fac3 = np.exp(-np.square(ro)/2)
-    field = fac1 * fac2 * fac3 * Lnm * np.cos( m * Theta * theta0)
-        
-    return (field, X, Y)
 
-
-if __name__ == '__main__':
-    field, X, Y = modes_grin(m=2, n=3)
-
-    plt.figure()
-    plt.imshow(field)
-    plt.colorbar()
+if __name__ == "__main__":
+    grid = CameraGrid(pixel_size=0.5e-6)
+    fiber = GrinFiber()
+    mode = GrinLPMode(2, 3)
+    mode.compose(fiber, grid)
+    mode.plot()
     plt.show()
-    
