@@ -13,8 +13,8 @@ class CameraGrid():
         self.pixel_size = pixel_size
         self.pixel_numbers = np.asarray(pixel_numbers)
         self.offsets = np.asarray(offsets)
-        self.x = np.arange(start=-self.grid_sizes[0]/2, stop=self.grid_sizes[0]/2 - self.pixel_size, step=self.pixel_size) - self.offsets[0]
-        self.y = np.arange(start=-self.grid_sizes[1]/2, stop=self.grid_sizes[1]/2 - self.pixel_size, step=self.pixel_size) - self.offsets[1]
+        self.x = np.arange(start=-self.grid_sizes[0]/2, stop=self.grid_sizes[0]/2, step=self.pixel_size) - self.offsets[0]
+        self.y = np.arange(start=-self.grid_sizes[1]/2, stop=self.grid_sizes[1]/2, step=self.pixel_size) - self.offsets[1]
         self.X, self.Y = np.meshgrid(self.x, self.y)
 
     @property
