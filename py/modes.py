@@ -7,8 +7,8 @@ from fiber import GrinFiber
 class GrinLPMode():
 
     def __init__(self, n: int, m: int, theta0: float = 0) -> None:
-        self.n = n
-        self.m = m
+        self.n = int(n)
+        self.m = int(m)
         self.theta0 = theta0 * np.pi / 180
         self._radius = None
         self._x = None
