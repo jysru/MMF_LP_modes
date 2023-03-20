@@ -15,7 +15,7 @@ class GrinLPMode():
         self._y = None
         self._fields = None
 
-    def compose(self, fiber: GrinFiber, grid: CameraGrid):
+    def compute(self, fiber: GrinFiber, grid: CameraGrid):
         self._radius = fiber.radius
         self._x = grid.x
         self._y = grid.y
@@ -80,6 +80,6 @@ if __name__ == "__main__":
     grid = CameraGrid(pixel_size=0.5e-6)
     fiber = GrinFiber()
     mode = GrinLPMode(2, 3)
-    mode.compose(fiber, grid)
+    mode.compute(fiber, grid)
     mode.plot()
     plt.show()
