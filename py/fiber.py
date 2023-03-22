@@ -47,7 +47,7 @@ class GrinFiber:
     
     @property
     def _N_modes(self):
-        return np.floor(np.square(self._V) / 4).astype(int)
+        return np.floor(np.square(self._V) / 16).astype(int)
 
     @property
     def _k0(self):
