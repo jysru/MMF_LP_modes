@@ -18,10 +18,15 @@ class GrinSpeckle():
         self.field = None
         self.compose()
 
-    def compose(self):
+    def compose(self, coeffs: tuple[np.array, np.array] = None):
         fields1 = np.zeros(shape=(self.grid.pixel_numbers[0], self.grid.pixel_numbers[1], self.N_modes))
         fields2 = np.zeros_like(fields1)
-        self._modes_random_coeffs()
+
+        if coeffs is not None:
+            self.modes_coeffs = coeffs[0]
+            self.orient_coeffs = coeffs[1]
+        else:
+            self._modes_random_coeffs()
 
         for i in range(self.N_modes):
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
@@ -57,6 +62,7 @@ class GrinSpeckle():
     def decompose(self, N_modes: int = 10):
         N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
         modes_coeffs = np.zeros(shape=(N_modes), dtype=np.complex64)
+        orient_coeffs = np.zeros(shape=(N_modes))
 
         for i in range(self.N_modes):
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
@@ -71,12 +77,14 @@ class GrinSpeckle():
             else:
                 Cp1 = GrinSpeckle.power_overlap_integral(self.field, mode0)
                 Cp2 = GrinSpeckle.power_overlap_integral(self.field, mode90)
-                mode_orient = np.sqrt(Cp1 / (Cp1 + Cp2)) * mode0 +  np.sqrt(Cp2 / (Cp1 + Cp2)) * mode90
+                Cor = Cp1 / (Cp1 + Cp2)
+                mode_orient = np.sqrt(Cor) * mode0 +  np.sqrt(1 - Cor) * mode90
                 phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_orient)
                 modes_coeffs[i] = np.sqrt(Cp1 + Cp2) * np.exp(1j * phi)
-                
+                orient_coeffs[i] = Cor
+
         modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
-        return modes_coeffs
+        return modes_coeffs, orient_coeffs
 
     @staticmethod
     def power_overlap_integral(field, mode):
@@ -124,7 +132,7 @@ if __name__ == "__main__":
     grid = CameraGrid(pixel_size=0.5e-6)
     fiber = GrinFiber()
     speckle = GrinSpeckle(fiber, grid, N_modes=15)
-    coeffs = speckle.decompose(N_modes=15)
+    coeffs, ors = speckle.decompose(N_modes=15)
 
     print(f"Sum of speckle intensity coeffs: {np.sum(np.abs(speckle.modes_coeffs)**2)}")
     print(f"Sum of speckle decomposition intensity coeffs: {np.sum(np.abs(coeffs)**2)}")
@@ -135,5 +143,7 @@ if __name__ == "__main__":
     print(np.angle(speckle.modes_coeffs))
     print(np.angle(coeffs))
 
+    print(speckle.orient_coeffs)
+    print(ors)
+
     speckle.plot()
-    plt.show()
