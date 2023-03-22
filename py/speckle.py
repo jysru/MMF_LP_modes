@@ -50,8 +50,9 @@ class GrinSpeckle():
         Phip = 2 * np.pi* np.random.rand(self.N_modes)
     
         # Get the complex coefficients
-        self.modes_coeffs = np.sqrt(Ip) * np.exp(1j * Phip)
+        modes_coeffs = np.sqrt(Ip) * np.exp(1j * Phip)
         self.orient_coeffs = np.random.rand(self.N_modes)
+        self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
 
     def decompose(self, N_modes: int = 10):
         N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
@@ -65,15 +66,16 @@ class GrinSpeckle():
 
             if n == 0: # Centro-symmetric mode
                 Cp = GrinSpeckle.power_overlap_integral(self.field, mode0)
-                modes_coeffs[i] = np.sqrt(Cp)
+                phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode0)
+                modes_coeffs[i] = np.sqrt(Cp) * np.exp(1j * phi)
             else:
                 Cp1 = GrinSpeckle.power_overlap_integral(self.field, mode0)
                 Cp2 = GrinSpeckle.power_overlap_integral(self.field, mode90)
-                modes_coeffs[i] = np.sqrt(Cp1 + Cp2)
-                # mode_orient = np.sqrt(np.abs(np.abs(Cp1) * mode0 + np.abs(Cp2) * mode90))
-                # Cp = GrinSpeckle.overlap_integral(self.field, mode_orient)
+                mode_orient = np.sqrt(Cp1 / (Cp1 + Cp2)) * mode0 +  np.sqrt(Cp2 / (Cp1 + Cp2)) * mode90
+                phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_orient)
+                modes_coeffs[i] = np.sqrt(Cp1 + Cp2) * np.exp(1j * phi)
                 
-        modes_coeffs = GrinSpeckle._normalize_decomposition_coeffs(modes_coeffs)
+        modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
         return modes_coeffs
 
     @staticmethod
@@ -81,7 +83,11 @@ class GrinSpeckle():
         return np.square(np.abs(np.sum(field * np.conj(mode)))) / (np.sum(np.square(np.abs(field))) * np.sum(np.square(np.abs(mode))))
     
     @staticmethod
-    def _normalize_decomposition_coeffs(coeffs):
+    def phase_from_overlap_integral(field, mode):
+        return np.angle(np.sum(field * np.conj(mode)))
+
+    @staticmethod
+    def _normalize_coeffs(coeffs):
         coeffs_abs = np.abs(coeffs)
         coeffs_angles = np.angle(coeffs)
         coeffs_abs = coeffs_abs / sum(np.square(np.abs(coeffs_abs)))
@@ -119,13 +125,15 @@ if __name__ == "__main__":
     fiber = GrinFiber()
     speckle = GrinSpeckle(fiber, grid, N_modes=15)
     coeffs = speckle.decompose(N_modes=15)
-    # norm_coeffs = 
 
     print(f"Sum of speckle intensity coeffs: {np.sum(np.abs(speckle.modes_coeffs)**2)}")
     print(f"Sum of speckle decomposition intensity coeffs: {np.sum(np.abs(coeffs)**2)}")
 
     print(np.abs(speckle.modes_coeffs)**2)
     print(np.abs(coeffs)**2)
+
+    print(np.angle(speckle.modes_coeffs))
+    print(np.angle(coeffs))
 
     speckle.plot()
     plt.show()
