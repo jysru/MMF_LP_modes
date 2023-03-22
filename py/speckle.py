@@ -64,7 +64,7 @@ class GrinSpeckle():
         modes_coeffs = np.zeros(shape=(N_modes), dtype=np.complex64)
         orient_coeffs = np.zeros(shape=(N_modes))
 
-        for i in range(self.N_modes):
+        for i in range(N_modes):
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
             mode = GrinLPMode(n, m)
             mode.compute(self.fiber, self.grid)
@@ -98,7 +98,6 @@ class GrinSpeckle():
     def _normalize_coeffs(coeffs):
         coeffs_abs = np.abs(coeffs)
         coeffs_angles = np.angle(coeffs)
-        coeffs_abs = coeffs_abs / sum(np.square(np.abs(coeffs_abs)))
         coeffs_angles = np.angle(np.exp(1j * (coeffs_angles - coeffs_angles[0])))
         return coeffs_abs * np.exp(1j * coeffs_angles)
     
@@ -132,7 +131,7 @@ if __name__ == "__main__":
     grid = CameraGrid(pixel_size=0.5e-6)
     fiber = GrinFiber()
     speckle = GrinSpeckle(fiber, grid, N_modes=15)
-    coeffs, ors = speckle.decompose(N_modes=15)
+    coeffs, ors = speckle.decompose(N_modes=10)
 
     print(f"Sum of speckle intensity coeffs: {np.sum(np.abs(speckle.modes_coeffs)**2)}")
     print(f"Sum of speckle decomposition intensity coeffs: {np.sum(np.abs(coeffs)**2)}")
