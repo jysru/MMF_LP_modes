@@ -123,7 +123,26 @@ class GrinSpeckle():
         ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
         plt.colorbar(pl, ax=ax)
 
+    def _sanity_checker(self):
+        coeffs, orients = speckle.decompose(N_modes=self.N_modes)
 
+        print(f"\t - Sum of intensity coeffs: {np.sum(np.square(np.abs(speckle.modes_coeffs)))}")
+        print(f"\t - Sum of decomposition intensity coeffs: {np.sum(np.square(np.abs(coeffs)))}")
+
+        print(f"\t - Intensity coeffs:")
+        print(np.square(np.abs(speckle.modes_coeffs)))
+        print(f"\t - Decomposition intensity coeffs:")
+        print(np.square(np.abs(coeffs)))
+
+        print(f"\t - Phases coeffs:")
+        print(np.angle(speckle.modes_coeffs))
+        print(f"\t - Decomposition phases coeffs:")
+        print(np.angle(coeffs))
+
+        print(f"\t - Orient coeffs:")
+        print(speckle.orient_coeffs)
+        print(f"\t - Decomposition orient coeffs:")
+        print(orients)
 
 
 
@@ -131,18 +150,6 @@ if __name__ == "__main__":
     grid = CameraGrid(pixel_size=0.5e-6)
     fiber = GrinFiber()
     speckle = GrinSpeckle(fiber, grid, N_modes=15)
-    coeffs, ors = speckle.decompose(N_modes=10)
-
-    print(f"Sum of speckle intensity coeffs: {np.sum(np.abs(speckle.modes_coeffs)**2)}")
-    print(f"Sum of speckle decomposition intensity coeffs: {np.sum(np.abs(coeffs)**2)}")
-
-    print(np.abs(speckle.modes_coeffs)**2)
-    print(np.abs(coeffs)**2)
-
-    print(np.angle(speckle.modes_coeffs))
-    print(np.angle(coeffs))
-
-    print(speckle.orient_coeffs)
-    print(ors)
-
+    speckle._sanity_checker()
     speckle.plot()
+    plt.show()
