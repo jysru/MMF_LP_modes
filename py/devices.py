@@ -17,8 +17,14 @@ class DeformableMirror(Grid):
     def __init__(self, pixel_size: float = 300e-6, pixel_numbers: tuple[int, int] = (34, 34), offsets: tuple[float, float] = (0.0, 0.0)) -> None:
         super().__init__(pixel_size, pixel_numbers, offsets)
         self._nan_mask_matrix = load_nan_mask()
-        self._field_matrix = np.zeros(shape=pixel_numbers, dtype=np.complex128)
-        self._field_matrix = self.apply_nan_mask_matrix(self._field_matrix)
+        self._field_matrix = None
+        self._field_matrix = self._init_field_matrix()
+
+    def _init_field_matrix(self):
+        moduli = np.ones(shape=tuple(self.pixel_numbers))
+        phases = np.zeros(shape=tuple(self.pixel_numbers))
+        field = moduli * np.exp(1j * phases)
+        return self.apply_nan_mask_matrix(field)
 
     def apply_nan_mask_matrix(self, matrix: np.ndarray,):
         matrix[self._nan_mask_matrix] = np.nan
@@ -53,12 +59,19 @@ class DeformableMirror(Grid):
         w_grid = np.concatenate([[0], w_grid, [w]])
 
         return h_grid, w_grid
+    
+    def apply_phase_map(self, phase_map):
+        if phase_map.shape != tuple(self.pixel_numbers):
+            phase_map = self._partition_to_matrix(phase_map)           
+        field = np.abs(self._field_matrix) * np.exp(1j * phase_map)
+        self._field_matrix = self.apply_nan_mask_matrix(field)
 
     def _partition_to_matrix(self, partition: np.ndarray):
         repeater = int(np.ceil(self.pixel_numbers[0] / partition.shape[0]))
         matrix = np.repeat(partition, repeater, axis=0)
         matrix = np.repeat(matrix, repeater, axis=1)
         matrix = DeformableMirror.crop_center(matrix, self.pixel_numbers[0])
+        return matrix
 
     @staticmethod
     def crop_center(img, crop):
@@ -212,11 +225,8 @@ if __name__ == "__main__":
     dm = DeformableMirror()
 
     print(dm._partition_to())
-    print(dm.field_vector.shape)
+    phase_map = 2*np.pi*np.random.rand(7,7)
+    dm.apply_phase_map(phase_map)
 
-    partition = np.random.rand(6,6)
-    dm._partition_to_matrix(partition)
-
-    dm._partition_to((6,6))
-    # dm.plot()
-    # plt.show()
+    dm.plot()
+    plt.show()
