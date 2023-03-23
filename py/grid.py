@@ -3,6 +3,7 @@ import numpy as np
 camera_pixel_size = 5.04e-6
 deformable_mirror_pixel_size = 300e-6
 
+
 class Grid():
 
     def __init__(
@@ -15,8 +16,8 @@ class Grid():
         self.pixel_size = pixel_size
         self.pixel_numbers = np.asarray(pixel_numbers)
         self.offsets = np.asarray(offsets)
-        self.x = np.arange(start=-self.grid_sizes[0]/2, stop=self.grid_sizes[0]/2, step=self.pixel_size) - self.offsets[0]
-        self.y = np.arange(start=-self.grid_sizes[1]/2, stop=self.grid_sizes[1]/2, step=self.pixel_size) - self.offsets[1]
+        self.x = np.arange(start=-self.grid_sizes[0]/2, stop=self.grid_sizes[0]/2, step=self.pixel_size) + self.pixel_size/2 - self.offsets[0]
+        self.y = np.arange(start=-self.grid_sizes[1]/2, stop=self.grid_sizes[1]/2, step=self.pixel_size) + self.pixel_size/2 - self.offsets[1]
         self.X, self.Y = np.meshgrid(self.x, self.y)
 
     def magnify_by(self, coeff: float):
