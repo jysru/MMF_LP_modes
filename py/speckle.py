@@ -119,7 +119,7 @@ class GrinSpeckle():
         ax = plt.gca()
         pl = plt.imshow(self.intensity, cmap=cmap, extent=extent)
         ax.set_xlabel("x [um]")
-        ax.set_xlabel("x [um]")
+        ax.set_ylabel("x [um]")
         ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
         plt.colorbar(pl, ax=ax)
 
