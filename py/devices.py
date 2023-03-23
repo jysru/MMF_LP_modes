@@ -104,6 +104,26 @@ class DeformableMirror(Grid):
             pad_amount = int((grid.pixel_numbers[0] - phi.shape[0]) // 2)
             phases = np.pad(phi, pad_width=pad_amount)
         return amplitude * np.exp(1j * phases)
+    
+    def export_to_beam(self, beam: beams.Beam, keep_beam_phases: bool=False):
+        phases = np.zeros_like(beam.amplitude)
+        if beam.grid.pixel_size == self.pixel_size:
+            phi = self.apply_nan_mask_matrix(self.phase, nan_value=0)
+            pad_amount = int((beam.grid.pixel_numbers[0] - self.pixel_numbers[0]) // 2)
+            phases = np.pad(phi, pad_width=pad_amount)
+        else:
+            partition = self._phase_map
+            repeater = int(np.ceil(self.pixel_size / beam.grid.pixel_size * partition.shape[0]))
+            matrix = np.repeat(partition, repeater, axis=0)
+            phi = np.repeat(matrix, repeater, axis=1)
+            pad_amount = int((beam.grid.pixel_numbers[0] - phi.shape[0]) // 2)
+            phases = np.pad(phi, pad_width=pad_amount)
+        
+        if keep_beam_phases:
+            beam.field = beam.field * np.exp(1j * phases)
+        else:
+            beam.field = beam.amplitude * np.exp(1j * phases)
+        return beam
         
     @staticmethod
     def vec952_to_mat34x34(vec, nan_mask_34x34, order: str = 'F'):
@@ -202,17 +222,15 @@ if __name__ == "__main__":
 
     grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
     beam = beams.BesselBeam(grid)
-    beam.compute(amplitude=1, width=2000e-6, centers=[0,0], order=1)
+    beam.compute(amplitude=1, width=1500e-6, centers=[0,0], order=1)
     dm.apply_amplitude_map(beam.amplitude)
     
-    # dm.plot()
-    # plt.show()
+    dm.plot()
+    plt.show()
 
     newgrid = Grid(pixel_size=dm.pixel_size/2, pixel_numbers=(78,78))
-    beam_kwargs = {'amplitude':1, 'width':2000e-6, 'centers':[0,0]}
-    field = dm.export_to_grid(newgrid, beams.GaussianBeam, beam_kwargs)
-
-    # fig, axs = plt.subplots(1,2)
-    # axs[0].imshow(np.abs(field))
-    # axs[1].imshow(np.angle(field))
-    # plt.show()
+    beam = beams.BesselBeam(newgrid)
+    beam.compute(amplitude=1, width=1500e-6, centers=[0,0], order=1)
+    beam = dm.export_to_beam(beam, keep_beam_phases=False)
+    beam.plot(complex=True)
+    plt.show()
