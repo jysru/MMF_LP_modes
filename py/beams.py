@@ -12,7 +12,7 @@ class Beam(ABC):
         self.grid = grid
         self.field = np.zeros(shape=(grid.pixel_numbers), dtype=float)
         self.centers = None
-        self.amplitude = None
+        self.amp = None
 
     def _add_offsets(self, offsets: list[int]= None) -> None:
         self.centers = self.grid.offsets + np.array(offsets) if offsets else self.grid.offsets
@@ -20,10 +20,18 @@ class Beam(ABC):
     @abstractmethod
     def compute(self):
         return
+    
+    @property
+    def phase(self):
+        return np.angle(self.field)
+    
+    @property
+    def amplitude(self):
+        return np.abs(self.field)
 
     @property
     def intensity(self):
-        return np.power(self.field,2)
+        return np.power(np.abs(self.field,2))
     
     @property
     def energy(self):
@@ -49,10 +57,10 @@ class GaussianBeam(Beam):
 
     def compute(self, amplitude: float = 1, width: float = 10e-6, centers: list[int] = None):
         self._add_offsets(centers)
-        self.amplitude = amplitude
+        self.amp = amplitude
         self.width = width
 
-        self.field = amplitude * np.exp(
+        self.field = self.amp * np.exp(
             -((np.square(self.grid.X - self.centers[0]) + np.square(self.grid.Y - self.centers[1]))
             / (2 * np.square(width)))
             )
@@ -60,7 +68,7 @@ class GaussianBeam(Beam):
     def __str__(self) -> str:
         return (
             f"{__class__.__name__} instance with:\n"
-            f"  - Amplitude: {self.amplitude}\n"
+            f"  - Amplitude: {self.amp}\n"
             f"  - Width: {self.width}\n"
             f"  - Centers: {self.centers}\n"
             f"  - Energy: {self.energy}\n"
@@ -76,18 +84,18 @@ class BesselBeam(Beam):
 
     def compute(self, amplitude: float = 1, order: int = 1, width: float = 10e-6, centers: list[int] = None):
         self._add_offsets(centers)
-        self.amplitude = amplitude
+        self.amp = amplitude
         self.width = width
         self.order = order
 
         arg = np.sqrt(np.power(self.grid.X - self.centers[0], 2) + np.power(self.grid.Y - self.centers[1], 2))
         self.field = sp.jn(order, arg / width)
-        self.field = self.amplitude * self.field / np.max(self.field)
+        self.field = self.amp * self.field / np.max(self.field)
 
     def __str__(self) -> str:
         return (
             f"{__class__.__name__} instance with:\n"
-            f"  - Amplitude: {self.amplitude}\n"
+            f"  - Amplitude: {self.amp}\n"
             f"  - Width: {self.width}\n"
             f"  - Order: {self.order}\n"
             f"  - Centers: {self.centers}\n"
@@ -99,13 +107,14 @@ class BesselGaussianBeam(Beam):
 
     def __init__(self, grid: Grid) -> None:
         super().__init__(grid)
+        
         self.bessel_width = None
         self.gaussian_width = None
         self.order = None
 
     def compute(self, amplitude: float = 1, order: int = 1, bessel_width: float = 10e-6, gaussian_width: float = 20e-6, centers: list[int] = None):
         self._add_offsets(centers)
-        self.amplitude = amplitude
+        self.amp = amplitude
         self.bessel_width = bessel_width
         self.gaussian_width = gaussian_width
         
@@ -115,12 +124,12 @@ class BesselGaussianBeam(Beam):
         bessel.compute(amplitude=amplitude, order=order, width=bessel_width, centers=centers)
 
         self.field = gauss.field * bessel.field
-        self.field = self.amplitude * self.field / np.max(self.field)
+        self.field = self.amp * self.field / np.max(self.field)
 
     def __str__(self) -> str:
         return (
             f"{__class__.__name__} instance with:\n"
-            f"  - Amplitude: {self.amplitude}\n"
+            f"  - Amplitude: {self.amp}\n"
             f"  - Bessel width: {self.bessel_width}\n"
             f"  - Gaussian width: {self.gaussian_width}\n"
             f"  - Order: {self.order}\n"
