@@ -134,15 +134,19 @@ class DeformableMirror(Grid):
     def phase(self):
         return np.angle(self._field_matrix)
     
-    def plot(self):
-        extent = np.array([np.min(self.x), np.max(self.x), np.min(self.y), np.max(self.y)]) * 1e6
+    def plot(self, show_extent: bool = True):
         fig, axs = plt.subplots(1, 2, figsize=(13,4))
-        pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
-        pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
-        axs[0].set_xlabel("x [um]")
-        axs[1].set_xlabel("x [um]")
-        axs[0].set_ylabel("y [um]")
-        axs[1].set_ylabel("y [um]")
+        if show_extent:
+            extent = np.array([np.min(self.x), np.max(self.x), np.min(self.y), np.max(self.y)]) * 1e6
+            pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
+            pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
+            axs[0].set_xlabel("x [um]")
+            axs[1].set_xlabel("x [um]")
+            axs[0].set_ylabel("y [um]")
+            axs[1].set_ylabel("y [um]")
+        else:
+            pl0 = axs[0].imshow(self.intensity, cmap="hot")
+            pl1 = axs[1].imshow(self.phase, cmap="twilight")
         axs[0].set_title(f"Intensity on mirror plane")
         axs[1].set_title(f"Phase on mirror plane")
         plt.colorbar(pl0, ax=axs[0])
@@ -156,7 +160,7 @@ class DeformableMirror(Grid):
 
 if __name__ == "__main__":
     dm = DeformableMirror()
-    phase_map = 2*np.pi*np.random.rand(6,6)
+    phase_map = 2*np.pi*np.random.rand(10,10)
     dm.apply_phase_map(phase_map)
 
     grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
