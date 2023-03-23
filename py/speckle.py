@@ -114,10 +114,12 @@ class GrinSpeckle():
     def plot(self, cmap: str = 'hot'):
         r = self.fiber.radius * 1e6
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * 1e6
+        circle = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
 
         fig = plt.figure()
         ax = plt.gca()
         pl = plt.imshow(self.intensity, cmap=cmap, extent=extent)
+        ax.add_patch(circle)
         ax.set_xlabel("x [um]")
         ax.set_ylabel("x [um]")
         ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
