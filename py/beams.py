@@ -35,6 +35,10 @@ class Beam():
     def intensity(self):
         return np.power(self.field,2)
     
+    @property
+    def energy(self):
+        return np.sum(self.intensity)
+    
     def plot(self, cmap: str = 'hot', extent_coeff: float = 1e6):
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * extent_coeff
         fig = plt.figure()
