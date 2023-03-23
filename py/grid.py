@@ -66,7 +66,7 @@ class Grid():
         
     def __str__(self) -> str:
         return (
-            "Grid instance with:\n"
+            f"{__class__.__name__} instance with:\n"
             f"  - Pixel size: {self.pixel_size}\n"
             f"  - Pixels number: {self.pixel_numbers}\n"
             f"  - Centers: {self.offsets}\n"
