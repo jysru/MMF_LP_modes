@@ -35,34 +35,10 @@ class DeformableMirror(Grid):
     
     def vector_to_matrix(self, vector, order: str = 'F') -> np.array:
         return np.reshape(vector, newshape=self.pixel_numbers, order=order)
-    
-    def _partition_to(self, shape: tuple[int, int] = (6,6)):
-        domain = np.zeros(shape=shape)
-        h, w = domain.shape
 
-        # get ids of pixels on half height, width
-        half_h, half_w = h // 2, w // 2
-
-        # compute diffs on each middle plane
-        half_h_diffs = np.diff(domain[half_h, :])
-        half_w_diffs = np.diff(domain[:, half_w])
-
-        # set NaNs to zero
-        half_h_diffs[np.isnan(half_h_diffs)] = 0.
-        half_w_diffs[np.isnan(half_w_diffs)] = 0.
-
-        # get indices where values changes (diff is nonzero)
-        h_grid = np.nonzero(half_h_diffs)[0] + 1
-        w_grid = np.nonzero(half_w_diffs)[0] + 1
-
-        h_grid = np.concatenate([[0], h_grid, [h]])
-        w_grid = np.concatenate([[0], w_grid, [w]])
-
-        return h_grid, w_grid
-    
     def apply_phase_map(self, phase_map):
         if phase_map.shape != tuple(self.pixel_numbers):
-            phase_map = self._partition_to_matrix(phase_map)           
+            phase_map = self._partition_to_matrix(phase_map)
         field = np.abs(self._field_matrix) * np.exp(1j * phase_map)
         self._field_matrix = self.apply_nan_mask_matrix(field)
 
@@ -72,6 +48,25 @@ class DeformableMirror(Grid):
         matrix = np.repeat(matrix, repeater, axis=1)
         matrix = DeformableMirror.crop_center(matrix, self.pixel_numbers[0])
         return matrix
+    
+    def retrieve_phase_map(self, partition_size: tuple[int, int]):
+        if phase_map.shape == tuple(self.pixel_numbers):
+            return self.phase
+        else:
+            return DeformableMirror._matrix_to_partition(self.phase, partition_size)
+    
+    @staticmethod
+    def _matrix_to_partition(matrix, partition_size: tuple[int, int]):
+        matrix = DeformableMirror._inverse_repeat(matrix, repeats=partition_size[0], axis=0)
+        return DeformableMirror._inverse_repeat(matrix, repeats=partition_size[1], axis=1)
+
+    @staticmethod
+    def _inverse_repeat(matrix, repeats, axis):
+        if isinstance(repeats, int):
+            indices = np.arange(matrix.shape[axis] / repeats, dtype=int) * repeats
+        else:  # assume array_like of int
+            indices = np.cumsum(repeats) - 1
+        return matrix.take(indices, axis)
 
     @staticmethod
     def crop_center(img, crop):
@@ -194,38 +189,14 @@ class DeformableMirror(Grid):
 #         return reduced_domains
 
 
-# def reconstruct_image_for_deformable_mirror(x, reduce_grid, zeros_mask, nan_mask=None):
-#     phases = np.angle(np.ravel(x))
-#     h_grid, w_grid = reduce_grid
-#     # grid = np.array([ 0,  5, 11, 17, 23, 29, 34])
-
-#     reduced_phases = np.zeros_like(zeros_mask).astype(float)
-#     reduced_phases[zeros_mask] = phases
-#     # reduced_phases = np.r_[
-#     #     np.r_[[0], phases[:4], [0]][None], 
-#     #     phases[4:-4].reshape(4, 6), 
-#     #     np.r_[[0], phases[-4:], [0]][None],
-#     # ]
-
-#     image = np.zeros((h_grid[-1], w_grid[-1]))
-#     for hi in range(len(h_grid) - 1):
-#         for wi in range(len(w_grid) - 1):
-#             image[h_grid[hi]:h_grid[hi + 1], w_grid[wi]:w_grid[wi + 1]] = reduced_phases[hi, wi]
-
-#     if nan_mask is not None:
-#         image[nan_mask] = np.nan
-#     return image
 
 
     
 
 
 if __name__ == "__main__":
-    # print(load_nan_mask())
     dm = DeformableMirror()
-
-    print(dm._partition_to())
-    phase_map = 2*np.pi*np.random.rand(7,7)
+    phase_map = 2*np.pi*np.random.rand(6,6)
     dm.apply_phase_map(phase_map)
 
     dm.plot()
