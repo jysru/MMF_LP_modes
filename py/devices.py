@@ -48,6 +48,12 @@ class DeformableMirror(Grid):
         field = np.abs(amplitude_map) * np.exp(1j * self.phase)
         self._field_matrix = self.apply_nan_mask_matrix(field)
 
+    def apply_complex_map(self, complex_map):
+        if complex_map.shape != tuple(self.pixel_numbers):
+            complex_map = self._partition_to_matrix(complex_map)
+        field = complex_map
+        self._field_matrix = self.apply_nan_mask_matrix(field)
+
     def _partition_to_matrix(self, partition: np.ndarray):
         repeater = int(np.ceil(self.pixel_numbers[0] / partition.shape[0]))
         matrix = np.repeat(partition, repeater, axis=0)
