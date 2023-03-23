@@ -81,7 +81,7 @@ class BesselBeam(Beam):
 
         arg = np.sqrt(np.power(self.grid.X - self.centers[0], 2) + np.power(self.grid.Y - self.centers[1], 2))
         self.field = sp.jn(order, arg / width)
-        self.field = amplitude * self.field / np.max(self.field)
+        self.field = self.amplitude * self.field / np.max(self.field)
 
     def __str__(self) -> str:
         return (
@@ -92,16 +92,46 @@ class BesselBeam(Beam):
             f"  - Centers: {self.centers}\n"
         )
         
-    
-        
 
+class BesselGaussianBeam(Beam):
+
+    def __init__(self, grid: Grid) -> None:
+        super().__init__(grid)
+        self.bessel_width = None
+        self.gaussian_width = None
+        self.order = None
+
+    def compute(self, amplitude: float = 1, order: int = 1, bessel_width: float = 10e-6, gaussian_width: float = 20e-6, centers: list[int] = None):
+        self._add_offsets(centers)
+        self.amplitude = amplitude
+        self.bessel_width = bessel_width
+        self.gaussian_width = gaussian_width
+        
+        gauss = GaussianBeam(self.grid)
+        gauss.compute(amplitude=amplitude, width=gaussian_width, centers=centers)
+        bessel = BesselBeam(self.grid)
+        bessel.compute(amplitude=amplitude, order=order, width=bessel_width, centers=centers)
+
+        self.field = gauss.field * bessel.field
+        self.field = self.amplitude * self.field / np.max(self.field)
+
+    def __str__(self) -> str:
+        return (
+            f"{__class__.__name__} instance with:\n"
+            f"  - Amplitude: {self.amplitude}\n"
+            f"  - Bessel width: {self.bessel_width}\n"
+            f"  - Gaussian width: {self.gaussian_width}\n"
+            f"  - Order: {self.order}\n"
+            f"  - Centers: {self.centers}\n"
+        )
 
 
 if __name__ == "__main__":
     grid = Grid(pixel_size=2e-6)
-    beam = GaussianBeam(grid)
-    beam.compute( amplitude=1, width=5e-6, centers=[50e-6,0])
+    beam = BesselGaussianBeam(grid)
+    beam.compute( amplitude=1, order=0, gaussian_width=80e-6, centers=[50e-6,0])
     print(beam)
+
 
     beam.plot()
     plt.show()
