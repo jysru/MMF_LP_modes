@@ -63,6 +63,7 @@ class GaussianBeam(Beam):
             f"  - Amplitude: {self.amplitude}\n"
             f"  - Width: {self.width}\n"
             f"  - Centers: {self.centers}\n"
+            f"  - Energy: {self.energy}\n"
         )
         
 
@@ -90,6 +91,7 @@ class BesselBeam(Beam):
             f"  - Width: {self.width}\n"
             f"  - Order: {self.order}\n"
             f"  - Centers: {self.centers}\n"
+            f"  - Energy: {self.energy}\n"
         )
         
 
@@ -123,6 +125,7 @@ class BesselGaussianBeam(Beam):
             f"  - Gaussian width: {self.gaussian_width}\n"
             f"  - Order: {self.order}\n"
             f"  - Centers: {self.centers}\n"
+            f"  - Energy: {self.energy}\n"
         )
 
 
@@ -131,7 +134,6 @@ if __name__ == "__main__":
     beam = BesselGaussianBeam(grid)
     beam.compute( amplitude=1, order=0, gaussian_width=80e-6, centers=[50e-6,0])
     print(beam)
-
 
     beam.plot()
     plt.show()
