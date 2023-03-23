@@ -19,6 +19,7 @@ class GrinLPMode():
         self._radius = fiber.radius
         self._x = grid.x
         self._y = grid.y
+        self._centers = grid.offsets
 
         fac_n = np.math.factorial(self._fn)
         fac_m_plus_n = np.math.factorial(self._fm + self._fn)
@@ -63,15 +64,20 @@ class GrinLPMode():
         extent = np.array([np.min(self._x), np.max(self._x), np.min(self._y), np.max(self._y)]) * 1e6
         str_mode = f"{self.n,self.m}"
 
+        circle1 = plt.Circle((-self._centers[0], -self._centers[1]), r, fill=False, edgecolor='k', linestyle='--')
+        circle2 = plt.Circle((-self._centers[0], -self._centers[1]), r, fill=False, edgecolor='k', linestyle='--')
+
         fig, axs = plt.subplots(1, 2, figsize=(12,4))
         pl0 = axs[0].imshow(self._fields[:,:,0], extent=extent, cmap="bwr")
         pl1 = axs[1].imshow(self._fields[:,:,1], extent=extent, cmap="bwr")
+        axs[0].add_patch(circle1)
+        axs[1].add_patch(circle2)
         axs[0].set_xlabel("x [um]")
         axs[1].set_xlabel("x [um]")
         axs[0].set_ylabel("y [um]")
         axs[1].set_ylabel("y [um]")
         axs[0].set_title(f"LP{str_mode}")
-        axs[0].set_title(f"LP{str_mode}")
+        axs[1].set_title(f"LP{str_mode}")
         plt.colorbar(pl0, ax=axs[0])
         plt.colorbar(pl1, ax=axs[1])
 
