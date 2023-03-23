@@ -1,11 +1,13 @@
 import numpy as np
 
+camera_pixel_size = 5.04e-6
+deformable_mirror_pixel_size = 300e-6
 
 class Grid():
 
     def __init__(
             self,
-            pixel_size: float = 5.04e-6,
+            pixel_size: float = camera_pixel_size,
             pixel_numbers: tuple[int, int] = (128, 128),
             offsets: tuple[float, float] = (0.0, 0.0),
             ) -> None:
@@ -28,6 +30,17 @@ class Grid():
         self.offsets *= coeff
         self.X, self.Y = np.meshgrid(self.x, self.y)
 
+    def reduce_by(self, coeff: float):
+        if coeff == 0:
+            coeff = 1
+            print('Coeff cannot be zero, coerced to 1')
+
+        self.pixel_size /= coeff
+        self.x /= coeff
+        self.y /= coeff
+        self.offsets /= coeff
+        self.X, self.Y = np.meshgrid(self.x, self.y)
+
     @property
     def grid_sizes(self):
         return self.pixel_size * self.pixel_numbers
@@ -39,7 +52,29 @@ class Grid():
     @property
     def A(self):
         return np.arctan2(self.Y, self.X)
+    
+    @property
+    def boundaries(self):
+        x_bounds = np.min(self.x), np.max(self.x)
+        y_bounds = np.min(self.y), np.max(self.y)
+        return (np.asarray(x_bounds), np.asarray(y_bounds))
+    
+    @property
+    def extents(self):
+        x_bounds, y_bounds = self.boundaries
+        return np.abs(np.asarray([np.diff(x_bounds)[0], np.diff(y_bounds)[0]]))
+        
+    def __str__(self) -> str:
+        return (
+            "Grid instance with:\n"
+            f"  - Pixel size: {self.pixel_size}\n"
+            f"  - Pixels number: {self.pixel_numbers}\n"
+            f"  - Centers: {self.offsets}\n"
+            f"  - Extent: {self.extents}\n"
+            f"  - Boundaries: {self.boundaries}\n"
+        )
 
 
 if __name__ == "__main__":
     grid = Grid()
+    print(grid)
