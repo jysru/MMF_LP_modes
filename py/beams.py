@@ -10,7 +10,7 @@ class Beam(ABC):
 
     def __init__(self, grid: Grid) -> None:
         self.grid = grid
-        self.field = np.zeros(shape=(grid.pixel_numbers), dtype=float)
+        self.field = np.zeros(shape=(grid.pixel_numbers), dtype=np.complex128)
         self.centers = None
         self.amp = None
 
@@ -31,7 +31,7 @@ class Beam(ABC):
 
     @property
     def intensity(self):
-        return np.power(np.abs(self.field,2))
+        return np.square(np.abs(self.field))
     
     @property
     def energy(self):
@@ -64,6 +64,7 @@ class GaussianBeam(Beam):
             -((np.square(self.grid.X - self.centers[0]) + np.square(self.grid.Y - self.centers[1]))
             / (2 * np.square(width)))
             )
+        self.field
         
     def __str__(self) -> str:
         return (
@@ -141,7 +142,7 @@ class BesselGaussianBeam(Beam):
 if __name__ == "__main__":
     grid = Grid(pixel_size=2e-6)
     beam = BesselGaussianBeam(grid)
-    beam.compute( amplitude=1, order=0, gaussian_width=80e-6, centers=[50e-6,0])
+    beam.compute( amplitude=1, order=1, bessel_width=10e-6, gaussian_width=80e-6, centers=[50e-6,0])
     print(beam)
 
     beam.plot()
