@@ -1,9 +1,9 @@
 import os
 import numpy as np
-import scipy.interpolate as interp
 import matplotlib.pyplot as plt
 
 from grid import Grid
+import beams as beams
 
 
 def load_nan_mask() -> np.array:
@@ -40,6 +40,12 @@ class DeformableMirror(Grid):
         if phase_map.shape != tuple(self.pixel_numbers):
             phase_map = self._partition_to_matrix(phase_map)
         field = np.abs(self._field_matrix) * np.exp(1j * phase_map)
+        self._field_matrix = self.apply_nan_mask_matrix(field)
+
+    def apply_amplitude_map(self, amplitude_map):
+        if amplitude_map.shape != tuple(self.pixel_numbers):
+            amplitude_map = self._partition_to_matrix(amplitude_map)
+        field = np.abs(amplitude_map) * np.exp(1j * self.phase)
         self._field_matrix = self.apply_nan_mask_matrix(field)
 
     def _partition_to_matrix(self, partition: np.ndarray):
@@ -124,7 +130,7 @@ class DeformableMirror(Grid):
     
     def plot(self):
         extent = np.array([np.min(self.x), np.max(self.x), np.min(self.y), np.max(self.y)]) * 1e6
-        fig, axs = plt.subplots(1, 2, figsize=(15,4))
+        fig, axs = plt.subplots(1, 2, figsize=(13,4))
         pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
         pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
         axs[0].set_xlabel("x [um]")
@@ -139,65 +145,18 @@ class DeformableMirror(Grid):
     def __str__(self) -> str:
         return (
             f"{__class__.__name__} instance with:\n"
-        )
-
-
-
-
-
-
-
-# def reconstruct_phases_34x34(vec, nan_mask):
-#     phases = np.angle(vec)
-#     phases = np.ravel(phases)
-#     grid = np.array([ 0,  5, 11, 17, 23, 29, 34])
-
-#     square_phases = np.r_[
-#         np.r_[[0], phases[:4], [0]][None], 
-#         phases[4:-4].reshape(4, 6), 
-#         np.r_[[0], phases[-4:], [0]][None],
-#     ]
-#     domain_phases = np.zeros((34, 34))
-
-#     for hi in range(len(grid) - 1):
-#         for wi in range(len(grid) - 1):
-#             domain_phases[grid[hi]:grid[hi + 1], grid[wi]:grid[wi + 1]] = square_phases[hi, wi]
-
-#     domain_phases[nan_mask] = np.nan
-#     return domain_phases
-
-# def reduce_2d(domains, reduce_grid=None, agg_func=None):
-#     domain = domains[0]
-#     if reduce_grid is None:
-#         reduce_grid = make_reduce_grid_2d(domain)
-#     if agg_func is None:
-#         agg_func = np.nanmean
-
-#     h_grid, w_grid = reduce_grid
-
-#     reduced_h, reduced_w = len(h_grid) - 1, len(w_grid) - 1
-#     reduced_domains = np.zeros(
-#         (len(domains), reduced_h, reduced_w),
-#         dtype=domain.dtype,
-#     )
-#     with warnings.catch_warnings():
-#         warnings.filterwarnings("ignore", category=RuntimeWarning)
-#         for hi in range(reduced_h):
-#             for wi in range(reduced_w):
-#                 reduce_areas = domains[:, h_grid[hi]:h_grid[hi + 1], w_grid[wi]:w_grid[wi + 1]]
-#                 reduced_domains[:, hi, wi] = agg_func(reduce_areas, axis=(-2, -1))
-#         return reduced_domains
-
-
-
-
-    
+        )  
 
 
 if __name__ == "__main__":
     dm = DeformableMirror()
     phase_map = 2*np.pi*np.random.rand(6,6)
     dm.apply_phase_map(phase_map)
+
+    grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
+    beam = beams.BesselBeam(grid)
+    beam.compute(amplitude=1, width=1000e-6, centers=[0,0], order=0)
+    dm.apply_amplitude_map(beam.amplitude)
 
     dm.plot()
     plt.show()
