@@ -1,7 +1,7 @@
 import numpy as np
 
 
-class CameraGrid():
+class Grid():
 
     def __init__(
             self,
@@ -15,6 +15,17 @@ class CameraGrid():
         self.offsets = np.asarray(offsets)
         self.x = np.arange(start=-self.grid_sizes[0]/2, stop=self.grid_sizes[0]/2, step=self.pixel_size) - self.offsets[0]
         self.y = np.arange(start=-self.grid_sizes[1]/2, stop=self.grid_sizes[1]/2, step=self.pixel_size) - self.offsets[1]
+        self.X, self.Y = np.meshgrid(self.x, self.y)
+
+    def magnify_by(self, coeff: float):
+        if coeff == 0:
+            coeff = 1
+            print('Coeff cannot be zero, coerced to 1')
+
+        self.pixel_size *= coeff
+        self.x *= coeff
+        self.y *= coeff
+        self.offsets *= coeff
         self.X, self.Y = np.meshgrid(self.x, self.y)
 
     @property
@@ -31,4 +42,4 @@ class CameraGrid():
 
 
 if __name__ == "__main__":
-    grid = CameraGrid()
+    grid = Grid()

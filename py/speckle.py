@@ -1,14 +1,14 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from grid import CameraGrid
+from grid import Grid
 from fiber import GrinFiber
 from modes import GrinLPMode
 
 
 class GrinSpeckle():
 
-    def __init__(self, fiber: GrinFiber, grid: CameraGrid, N_modes: int = 10, noise_std: float = 0.0) -> None:
+    def __init__(self, fiber: GrinFiber, grid: Grid, N_modes: int = 10, noise_std: float = 0.0) -> None:
         self.N_modes = fiber._N_modes if N_modes > fiber._N_modes else N_modes
         self.fiber = fiber
         self.grid = grid
@@ -147,7 +147,7 @@ class GrinSpeckle():
 
 
 if __name__ == "__main__":
-    grid = CameraGrid(pixel_size=0.5e-6)
+    grid = Grid(pixel_size=0.5e-6)
     fiber = GrinFiber()
     speckle = GrinSpeckle(fiber, grid, N_modes=15)
     speckle._sanity_checker()

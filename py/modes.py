@@ -1,7 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from grid import CameraGrid
+from grid import Grid
 from fiber import GrinFiber
 
 class GrinLPMode():
@@ -15,7 +15,7 @@ class GrinLPMode():
         self._y = None
         self._fields = None
 
-    def compute(self, fiber: GrinFiber, grid: CameraGrid):
+    def compute(self, fiber: GrinFiber, grid: Grid):
         self._radius = fiber.radius
         self._x = grid.x
         self._y = grid.y
@@ -77,7 +77,7 @@ class GrinLPMode():
 
 
 if __name__ == "__main__":
-    grid = CameraGrid(pixel_size=0.5e-6)
+    grid = Grid(pixel_size=0.5e-6)
     fiber = GrinFiber()
     mode = GrinLPMode(2, 3)
     mode.compute(fiber, grid)
