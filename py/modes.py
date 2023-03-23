@@ -58,7 +58,7 @@ class GrinLPMode():
     def energies(self):
         return np.sum(self.intensities, axis=(0,1))
     
-    def plot(self, fignum: int = 1):
+    def plot(self):
         r = self._radius * 1e6
         extent = np.array([np.min(self._x), np.max(self._x), np.min(self._y), np.max(self._y)]) * 1e6
         str_mode = f"{self.n,self.m}"
