@@ -16,7 +16,6 @@ class GrinSpeckle():
         self.modes_coeffs = None
         self.orient_coeffs = None
         self.field = None
-        self.compose()
 
     def compose(self, coeffs: tuple[np.array, np.array] = None):
         fields1 = np.zeros(shape=(self.grid.pixel_numbers[0], self.grid.pixel_numbers[1], self.N_modes))
@@ -126,32 +125,32 @@ class GrinSpeckle():
         plt.colorbar(pl, ax=ax)
 
     def _sanity_checker(self):
-        coeffs, orients = speckle.decompose(N_modes=self.N_modes)
+        coeffs, orients = self.decompose(N_modes=self.N_modes)
 
-        print(f"\t - Sum of intensity coeffs: {np.sum(np.square(np.abs(speckle.modes_coeffs)))}")
+        print(f"\t - Sum of intensity coeffs: {np.sum(np.square(np.abs(self.modes_coeffs)))}")
         print(f"\t - Sum of decomposition intensity coeffs: {np.sum(np.square(np.abs(coeffs)))}")
 
         print(f"\t - Intensity coeffs:")
-        print(np.square(np.abs(speckle.modes_coeffs)))
+        print(np.square(np.abs(self.modes_coeffs)))
         print(f"\t - Decomposition intensity coeffs:")
         print(np.square(np.abs(coeffs)))
 
         print(f"\t - Phases coeffs:")
-        print(np.angle(speckle.modes_coeffs))
+        print(np.angle(self.modes_coeffs))
         print(f"\t - Decomposition phases coeffs:")
         print(np.angle(coeffs))
 
         print(f"\t - Orient coeffs:")
-        print(speckle.orient_coeffs)
+        print(self.orient_coeffs)
         print(f"\t - Decomposition orient coeffs:")
         print(orients)
-
 
 
 if __name__ == "__main__":
     grid = Grid(pixel_size=0.5e-6)
     fiber = GrinFiber()
     speckle = GrinSpeckle(fiber, grid, N_modes=15)
+    speckle.compose()
     speckle._sanity_checker()
     speckle.plot()
     plt.show()
