@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 from grid import Grid
 from fiber import GrinFiber
 from modes import GrinLPMode
+from plots import complex_image
 
 
 class GrinSpeckle():
@@ -101,6 +102,10 @@ class GrinSpeckle():
         return coeffs_abs * np.exp(1j * coeffs_angles)
     
     @property
+    def phase(self):
+        return np.angle(self.field)
+    
+    @property
     def energy(self):
         return np.sum(np.square(np.abs(self.field)))
 
@@ -110,19 +115,47 @@ class GrinSpeckle():
         val = val / np.max(val)
         return np.abs(val + self.noise_std * np.random.randn(*val.shape))
     
-    def plot(self, cmap: str = 'hot'):
+    def plot(self, cmap: str = 'hot', complex: bool = False, complex_hsv: bool = False):
         r = self.fiber.radius * 1e6
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * 1e6
-        circle = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
+        circle1 = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
+        circle2 = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
 
-        fig = plt.figure()
-        ax = plt.gca()
-        pl = plt.imshow(self.intensity, cmap=cmap, extent=extent)
-        ax.add_patch(circle)
-        ax.set_xlabel("x [um]")
-        ax.set_ylabel("x [um]")
-        ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
-        plt.colorbar(pl, ax=ax)
+        if complex:
+            if complex_hsv:
+                fig = plt.figure()
+                ax = plt.gca()
+                pl = plt.imshow(complex_image(self.field), extent=extent)
+                ax.add_patch(circle1)
+                ax.set_xlabel("x [um]")
+                ax.set_ylabel("x [um]")
+                ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
+                return (fig, ax, pl)
+            else:
+                fig, axs = plt.subplots(1, 2, figsize=(13,4))
+                pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
+                pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
+                axs[0].add_patch(circle1)
+                axs[1].add_patch(circle2)
+                axs[0].set_xlabel("x [um]")
+                axs[1].set_xlabel("x [um]")
+                axs[0].set_ylabel("y [um]")
+                axs[1].set_ylabel("y [um]")
+                axs[0].set_title(f"GRIN speckle intensity ({self.N_modes} modes)")
+                axs[1].set_title(f"GRIN speckle phase ({self.N_modes} modes)")
+                plt.colorbar(pl0, ax=axs[0])
+                plt.colorbar(pl1, ax=axs[1])
+                return (fig, axs, [pl0, pl1])
+        else:
+            fig = plt.figure()
+            ax = plt.gca()
+            pl = plt.imshow(self.intensity, cmap=cmap, extent=extent)
+            ax.add_patch(circle1)
+            ax.set_xlabel("x [um]")
+            ax.set_ylabel("x [um]")
+            ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
+            plt.colorbar(pl, ax=ax)
+            return (fig, ax, pl)
 
     def _sanity_checker(self):
         coeffs, orients = self.decompose(N_modes=self.N_modes)
@@ -152,5 +185,5 @@ if __name__ == "__main__":
     speckle = GrinSpeckle(fiber, grid, N_modes=15)
     speckle.compose()
     speckle._sanity_checker()
-    speckle.plot()
+    speckle.plot(complex=True)
     plt.show()
