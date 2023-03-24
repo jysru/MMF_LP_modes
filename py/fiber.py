@@ -36,6 +36,18 @@ class GrinFiber:
     
     def _h_vs_nm(self, n, m):
         return 2 * n + m - 1
+    
+    def modes_coupling_matrix(self, complex: bool = False):
+        groups_neff, groups_indexes, groups_counts = np.unique(self._neff_hnm[:,0], return_index=True, return_counts=True)
+        groups_neff = np.flip(groups_neff)
+        groups_indexes = np.flip(groups_indexes)
+        groups_counts = np.flip(groups_counts)
+
+        matrix = np.zeros(shape=(self._N_modes, self._N_modes))
+        for i, count in enumerate(groups_counts):
+            idx = groups_indexes[i]
+            matrix[idx:idx+count, idx:idx+count] = np.random.rand(count, count)
+        return matrix
 
     @property
     def _NA(self):
@@ -66,3 +78,10 @@ class GrinFiber:
 if __name__ == "__main__":
     fiber = GrinFiber()
     print(fiber)
+    matrix = fiber.modes_coupling_matrix()
+    
+    import matplotlib.pyplot as plt
+    plt.figure()
+    plt.imshow(matrix)
+    plt.show()
+    
