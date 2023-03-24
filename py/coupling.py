@@ -56,37 +56,45 @@ class GrinFiberBeamCoupler(GrinSpeckle):
 
         fig = plt.figure()
         ax = plt.gca()
-        pl = plt.imshow(np.abs(self.speckle), cmap=cmap)
+        pl = plt.imshow(np.abs(self.speckle), cmap=cmap, extent=extent)
         ax.add_patch(circle)
         ax.set_xlabel("x [um]")
         ax.set_ylabel("x [um]")
         ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
         plt.colorbar(pl, ax=ax)
 
+    def __str__(self) -> str:
+        return (
+            f"\t - Sum of intensity coeffs: {np.sum(np.square(np.abs(self.modes_coeffs)))}"
+            f"\t - Intensity coeffs:"
+            f"{np.square(np.abs(self.modes_coeffs))}"
+            f"\t - Phases coeffs:"
+            f"{np.angle(self.modes_coeffs)}"
+            f"\t - Orient coeffs:"
+            f"{self.orient_coeffs}"
+        )
+
 
 if __name__ == "__main__":
-
     dm = DeformableMirror()
-    dm.reduce_by(500)
+    dm.reduce_by(200)
     phase_map = 2*np.pi*np.random.rand(6,6)
     dm.apply_phase_map(phase_map)
 
-    grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=(128,128))
+    grid = Grid(pixel_size=dm.pixel_size/2, pixel_numbers=(128,128))
     beam = beams.GaussianBeam(grid)
     beam.compute(amplitude=1, width=20e-6, centers=[0,0])
     dm.apply_amplitude_map(beam.amplitude)
-    
-    dm.plot()
+
+    newgrid = Grid(pixel_size=dm.pixel_size/2, pixel_numbers=(128,128))
+    beam = beams.GaussianBeam(newgrid)
+    beam.compute(amplitude=1, width=20e-6, centers=[0,0])
+    beam = dm.export_to_beam(beam, keep_beam_phases=False)
+    beam.plot(complex=True)
     plt.show()
 
-    newgrid = Grid(pixel_size=dm.pixel_size, pixel_numbers=(128,128))
-    beam = beams.GaussianBeam(newgrid)
-    beam.compute(amplitude=1, width=3e-6, centers=[0,0])
-    beam = dm.export_to_beam(beam, keep_beam_phases=False)
-    # beam.plot(complex=True)
-    # plt.show()
-
     
-    coupled = GrinFiberBeamCoupler(beam=beam, N_modes=30)
-    coupled.plot()
+    coupled = GrinFiberBeamCoupler(beam=beam, N_modes=55)
+    coupled.plot(cmap='gray')
+    print(coupled)
     plt.show()
