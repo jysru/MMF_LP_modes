@@ -4,6 +4,7 @@ import matplotlib.pyplot as plt
 import scipy.special as sp
 
 from grid import Grid
+from plots import complex_image
 
 
 class Beam(ABC):
@@ -37,22 +38,31 @@ class Beam(ABC):
     def energy(self):
         return np.sum(self.intensity)
     
-    def plot(self, cmap: str = 'hot', extent_coeff: float = 1e6, complex: bool = False):
+    def plot(self, cmap: str = 'hot', extent_coeff: float = 1e6, complex: bool = False, complex_hsv: bool = False):
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * extent_coeff
 
         if complex:
-            fig, axs = plt.subplots(1, 2, figsize=(13,4))
-            pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
-            pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
-            axs[0].set_xlabel("x [um]")
-            axs[1].set_xlabel("x [um]")
-            axs[0].set_ylabel("y [um]")
-            axs[1].set_ylabel("y [um]")
-            axs[0].set_title(f"Beam intensity")
-            axs[1].set_title(f"Beam phase")
-            plt.colorbar(pl0, ax=axs[0])
-            plt.colorbar(pl1, ax=axs[1])
-            return (fig, axs, [pl0, pl1])
+            if complex_hsv:
+                fig = plt.figure()
+                ax = plt.gca()
+                pl = plt.imshow(complex_image(self.field), extent=extent)
+                ax.set_xlabel("x [um]")
+                ax.set_ylabel("y [um]")
+                ax.set_title(f"Beam field")
+                return (fig, ax, pl)
+            else:
+                fig, axs = plt.subplots(1, 2, figsize=(13,4))
+                pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
+                pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
+                axs[0].set_xlabel("x [um]")
+                axs[1].set_xlabel("x [um]")
+                axs[0].set_ylabel("y [um]")
+                axs[1].set_ylabel("y [um]")
+                axs[0].set_title(f"Beam intensity")
+                axs[1].set_title(f"Beam phase")
+                plt.colorbar(pl0, ax=axs[0])
+                plt.colorbar(pl1, ax=axs[1])
+                return (fig, axs, [pl0, pl1])
         else:
             fig = plt.figure()
             ax = plt.gca()
@@ -160,5 +170,5 @@ if __name__ == "__main__":
     beam.compute( amplitude=1, order=1, bessel_width=10e-6, gaussian_width=80e-6, centers=[50e-6,0])
     print(beam)
 
-    beam.plot(complex=True)
+    beam.plot(complex=True, complex_hsv=True)
     plt.show()
