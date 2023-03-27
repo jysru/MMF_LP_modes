@@ -52,7 +52,7 @@ class Beam(ABC):
                 return (fig, ax, pl)
             else:
                 fig, axs = plt.subplots(1, 2, figsize=(13,4))
-                pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
+                pl0 = axs[0].imshow(self.intensity, extent=extent, cmap=cmap)
                 pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
                 axs[0].set_xlabel("x [um]")
                 axs[1].set_xlabel("x [um]")
@@ -87,7 +87,7 @@ class GaussianBeam(Beam):
 
         self.field = self.amp * np.exp(
             -((np.square(self.grid.X - self.centers[0]) + np.square(self.grid.Y - self.centers[1]))
-            / (2 * np.square(width)))
+            / (np.square(width)))
             )
         self.field
         
@@ -166,9 +166,9 @@ class BesselGaussianBeam(Beam):
 
 if __name__ == "__main__":
     grid = Grid(pixel_size=2e-6)
-    beam = BesselGaussianBeam(grid)
-    beam.compute( amplitude=1, order=1, bessel_width=10e-6, gaussian_width=80e-6, centers=[50e-6,0])
+    beam = GaussianBeam(grid)
+    beam.compute( amplitude=1, width=30e-6, centers=[0,0])
     print(beam)
 
-    beam.plot(complex=True, complex_hsv=True)
+    beam.plot(complex=True)
     plt.show()
