@@ -121,9 +121,10 @@ if __name__ == "__main__":
     beam.grid.reduce_by(200)
     beam.field = dm._field_matrix
     coupled = GrinFiberBeamCoupler(beam=beam, N_modes=20)
-    print(coupled)
+    print(f"Coupled energy: {np.sum(np.square(np.abs(coupled.field)))}")
     coupled.plot(cmap='gray')
     speck = coupled.propagate(complex=False)
+    print(f"Coupled energy: {np.sum(np.square(np.abs(speck)))}")
     coupled.plot(cmap='gray')
     print(coupled)
     plt.show()

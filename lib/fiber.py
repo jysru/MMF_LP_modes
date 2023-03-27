@@ -116,6 +116,7 @@ class GrinFiber:
 
 if __name__ == "__main__":
     fiber = GrinFiber()
+    print(fiber._N_modes)
     matrix = fiber.modes_coupling_matrix(complex=True)
     GrinFiber.plot_coupling_matrix(matrix, complex=True)
     plt.show()
