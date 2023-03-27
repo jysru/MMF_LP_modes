@@ -1,4 +1,8 @@
 import numpy as np
+import matplotlib.pyplot as plt
+
+import matrix as matproc
+from plots import complex_image
 
 
 class GrinFiber:
@@ -43,10 +47,11 @@ class GrinFiber:
         groups_indexes = np.flip(groups_indexes)
         groups_counts = np.flip(groups_counts)
 
-        matrix = np.zeros(shape=(self._N_modes, self._N_modes))
+        dtype = np.complex128 if complex else np.float64
+        matrix = np.zeros(shape=(self._N_modes, self._N_modes), dtype=dtype)
         for i, count in enumerate(groups_counts):
             idx = groups_indexes[i]
-            matrix[idx:idx+count, idx:idx+count] = np.random.rand(count, count)
+            matrix[idx:idx+count, idx:idx+count] = matproc.square_random_toeplitz(count, complex=complex)
         return matrix
 
     @property
@@ -69,6 +74,40 @@ class GrinFiber:
     def _delta(self):
         return np.square(self._NA) / (2 * np.square(self.n1))
     
+    @staticmethod
+    def plot_coupling_matrix(matrix, cmap: str = 'hot', complex: bool = False, complex_hsv: bool = False):
+        if complex:
+            if complex_hsv:
+                fig = plt.figure()
+                ax = plt.gca()
+                pl = plt.imshow(complex_image(matrix))
+                ax.set_xlabel("Input mode index")
+                ax.set_ylabel("Output mode index")
+                ax.set_title(f"GRIN fiber coupling matrix (complex)")
+                return (fig, ax, pl)
+            else:
+                fig, axs = plt.subplots(1, 2, figsize=(13,4))
+                pl0 = axs[0].imshow(np.abs(matrix), cmap=cmap)
+                pl1 = axs[1].imshow(np.angle(matrix), cmap="twilight")
+                axs[0].set_xlabel("Input mode index")
+                axs[1].set_ylabel("Output mode index")
+                axs[0].set_xlabel("Input mode index")
+                axs[1].set_ylabel("Output mode index")
+                axs[0].set_title(f"GRIN fiber coupling matrix (amplitude)")
+                axs[1].set_title(f"GRIN fiber coupling matrix (phase)")
+                plt.colorbar(pl0, ax=axs[0])
+                plt.colorbar(pl1, ax=axs[1])
+                return (fig, axs, [pl0, pl1])
+        else:
+            fig = plt.figure()
+            ax = plt.gca()
+            pl = plt.imshow(np.abs(matrix), cmap=cmap)
+            ax.set_xlabel("Input mode index")
+            ax.set_ylabel("Output mode index")
+            ax.set_title(f"GRIN fiber coupling matrix (amplitude)")
+            plt.colorbar(pl, ax=ax)
+            return (fig, ax, pl)
+    
     def __str__(self):
         return f"""
         {self._neff_hnm[:10]}
@@ -77,11 +116,7 @@ class GrinFiber:
 
 if __name__ == "__main__":
     fiber = GrinFiber()
-    print(fiber)
-    matrix = fiber.modes_coupling_matrix()
-    
-    import matplotlib.pyplot as plt
-    plt.figure()
-    plt.imshow(matrix)
+    matrix = fiber.modes_coupling_matrix(complex=True)
+    GrinFiber.plot_coupling_matrix(matrix, complex=True)
     plt.show()
     

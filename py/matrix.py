@@ -1,4 +1,5 @@
 import numpy as np
+from scipy import linalg
 
 
 def matrix_to_vector(matrix: np.ndarray, order: str = 'F') -> np.array:
@@ -47,3 +48,18 @@ def partition_to_matrix(partition: np.ndarray, matrix: np.ndarray):
         return matrix
 
 
+def square_random_toeplitz(n, norm_intens: bool = True, complex: bool = False):
+    vec = np.random.rand(n)
+    if norm_intens:
+        vec = np.sqrt(vec / np.sum(vec))
+    matrix = linalg.toeplitz(vec, vec)
+
+    if complex:
+        phi = 2 * np.pi * np.random.rand(n, n)
+        if n > 1:
+            triu_nodiag = np.triu(phi, k=1)
+            triu = np.triu(phi)
+            phi = np.angle(np.exp(1j * (triu - triu_nodiag.T)))
+        matrix = matrix * np.exp(1j * phi)
+
+    return matrix
