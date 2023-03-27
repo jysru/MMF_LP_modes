@@ -41,7 +41,13 @@ class GrinFiber:
     def _h_vs_nm(self, n, m):
         return 2 * n + m - 1
     
-    def modes_coupling_matrix(self, complex: bool = False):
+    def modes_coupling_matrix(self, complex: bool = False, full: bool = False, decay_width: float = None):
+        if full:
+            return matproc.square_random_toeplitz(self._N_modes, complex=complex, decay_width=decay_width)
+        else:
+            return self._group_coupling_matrix()
+
+    def _group_coupling_matrix(self, complex: bool = False):
         groups_neff, groups_indexes, groups_counts = np.unique(self._neff_hnm[:,0], return_index=True, return_counts=True)
         groups_neff = np.flip(groups_neff)
         groups_indexes = np.flip(groups_indexes)

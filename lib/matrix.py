@@ -48,8 +48,12 @@ def partition_to_matrix(partition: np.ndarray, matrix: np.ndarray):
         return matrix
 
 
-def square_random_toeplitz(n, norm_intens: bool = True, complex: bool = False):
+def square_random_toeplitz(n, norm_intens: bool = True, complex: bool = False, decay_width: float = None):
     vec = np.random.rand(n)
+
+    if decay_width is not None:
+        vec *= np.exp( -np.square(np.arange(0, n)) / (2 * np.square(decay_width)) )
+
     if norm_intens:
         vec = np.sqrt(vec / np.sum(vec))
     matrix = linalg.toeplitz(vec, vec)
@@ -63,3 +67,5 @@ def square_random_toeplitz(n, norm_intens: bool = True, complex: bool = False):
         matrix = matrix * np.exp(1j * phi)
 
     return matrix
+
+
