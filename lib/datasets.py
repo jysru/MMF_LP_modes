@@ -38,6 +38,9 @@ class GrinLPDataset:
     def intensities(self):
         val = np.square(np.abs(self._fields))
         return np.abs(val + self._noise_std * np.random.randn(*val.shape))
+    
+    def __getitem__(self, idx):
+        return self.intensities[:, :, idx]
 
 
 class GrinLPSpeckleDataset:
@@ -67,6 +70,9 @@ class GrinLPSpeckleDataset:
     def intensities(self):
         val = np.square(np.abs(self._fields))
         return np.abs(val + self._noise_std * np.random.randn(*val.shape))
+    
+    def __getitem__(self, idx):
+        return self.intensities[:, :, idx]
 
     
 class SimulatedGrinSpeckleOutputDataset:
@@ -124,7 +130,6 @@ if __name__ == "__main__":
     dset = SimulatedGrinSpeckleOutputDataset(fiber, grid, length=10, N_modes=45)
     dset.compute(complex=True)
 
-    
     plt.figure()
     plt.imshow(dset[0], cmap='gray')
     plt.colorbar()
@@ -133,6 +138,3 @@ if __name__ == "__main__":
     plt.imshow(dset[3], cmap='gray')
     plt.colorbar()
     plt.show()
-
-
-    
