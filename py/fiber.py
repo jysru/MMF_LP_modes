@@ -75,7 +75,7 @@ class GrinFiber:
         return np.square(self._NA) / (2 * np.square(self.n1))
     
     @staticmethod
-    def plot_coupling_matrix(matrix, cmap: str = 'hot', complex: bool = False, complex_hsv: bool = False):
+    def plot_coupling_matrix(matrix, cmap: str = 'gray', complex: bool = False, complex_hsv: bool = False):
         if complex:
             if complex_hsv:
                 fig = plt.figure()

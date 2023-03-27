@@ -38,7 +38,7 @@ class Beam(ABC):
     def energy(self):
         return np.sum(self.intensity)
     
-    def plot(self, cmap: str = 'hot', extent_coeff: float = 1e6, complex: bool = False, complex_hsv: bool = False):
+    def plot(self, cmap: str = 'gray', extent_coeff: float = 1e6, complex: bool = False, complex_hsv: bool = False):
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * extent_coeff
 
         if complex:

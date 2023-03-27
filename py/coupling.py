@@ -103,7 +103,7 @@ class GrinFiberBeamCoupler(GrinSpeckle):
             f"\t - Coupled power: {np.sum(np.square(np.abs(self.modes_coeffs)))}\n"
             f"\t - Number of modes: {self.N_modes}"
         )
-
+    
 
 if __name__ == "__main__":
 
@@ -116,13 +116,14 @@ if __name__ == "__main__":
     beam.compute(amplitude=1, width=3500e-6, centers=[0,0])
     dm.apply_amplitude_map(beam.amplitude)
     dm.reduce_by(200)
-    # dm.plot()
+    dm.plot()
 
     beam.grid.reduce_by(200)
     beam.field = dm._field_matrix
-    coupled = GrinFiberBeamCoupler(beam=beam, N_modes=55)
+    coupled = GrinFiberBeamCoupler(beam=beam, N_modes=20)
+    print(coupled)
     coupled.plot(cmap='gray')
-    coupled.propagate(complex=False)
+    speck = coupled.propagate(complex=False)
     coupled.plot(cmap='gray')
     print(coupled)
     plt.show()

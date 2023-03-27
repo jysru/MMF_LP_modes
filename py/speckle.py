@@ -115,7 +115,7 @@ class GrinSpeckle():
         val = val / np.max(val)
         return np.abs(val + self.noise_std * np.random.randn(*val.shape))
     
-    def plot(self, cmap: str = 'hot', complex: bool = False, complex_hsv: bool = False):
+    def plot(self, cmap: str = 'gray', complex: bool = False, complex_hsv: bool = False):
         r = self.fiber.radius * 1e6
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * 1e6
         circle1 = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
@@ -133,7 +133,7 @@ class GrinSpeckle():
                 return (fig, ax, pl)
             else:
                 fig, axs = plt.subplots(1, 2, figsize=(13,4))
-                pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
+                pl0 = axs[0].imshow(self.intensity, extent=extent, cmap=cmap)
                 pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
                 axs[0].add_patch(circle1)
                 axs[1].add_patch(circle2)

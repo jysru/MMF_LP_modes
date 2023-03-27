@@ -225,21 +225,21 @@ class MockDeformableMirror(Grid):
     def phase(self):
         return np.angle(self._field_matrix)
     
-    def plot(self, show_extent: bool = True, apply_mask: bool=True):
+    def plot(self, cmap: str = "gray", show_extent: bool = True, apply_mask: bool=True):
         intens = self.apply_mask(self.intensity) if apply_mask else intens
         phase = self.apply_mask(self.phase) if apply_mask else phase
 
         fig, axs = plt.subplots(1, 2, figsize=(13,4))
         if show_extent:
             extent = np.array([np.min(self.x), np.max(self.x), np.min(self.y), np.max(self.y)]) * 1e6
-            pl0 = axs[0].imshow(intens, extent=extent, cmap="hot")
+            pl0 = axs[0].imshow(intens, extent=extent, cmap=cmap)
             pl1 = axs[1].imshow(phase, extent=extent, cmap="twilight")
             axs[0].set_xlabel("x [um]")
             axs[1].set_xlabel("x [um]")
             axs[0].set_ylabel("y [um]")
             axs[1].set_ylabel("y [um]")
         else:
-            pl0 = axs[0].imshow(intens, cmap="hot")
+            pl0 = axs[0].imshow(intens, cmap=cmap)
             pl1 = axs[1].imshow(phase, cmap="twilight")
         axs[0].set_title(f"Intensity on mirror plane")
         axs[1].set_title(f"Phase on mirror plane")
