@@ -5,6 +5,12 @@ import matplotlib.pyplot as plt
 
 from grid import Grid
 import beams as beams
+import matrix as matproc
+
+
+deformable_mirror_diagonal_count = 34
+deformable_mirror_actuator_size = 300e-6
+deformable_mirror_diameter = deformable_mirror_diagonal_count * deformable_mirror_actuator_size
 
 
 def load_nan_mask() -> np.array:
@@ -31,12 +37,6 @@ class DeformableMirror(Grid):
         matrix[self._nan_mask_matrix] = nan_value
         return matrix
 
-    def matrix_to_vector(self, matrix: np.ndarray, order: str = 'F') -> np.array:
-        return np.reshape(matrix, newshape=(-1,), order=order)
-    
-    def vector_to_matrix(self, vector, order: str = 'F') -> np.array:
-        return np.reshape(vector, newshape=self.pixel_numbers, order=order)
-
     def apply_phase_map(self, phase_map):
         if phase_map.shape != tuple(self.pixel_numbers):
             self._phase_map = phase_map
@@ -54,37 +54,15 @@ class DeformableMirror(Grid):
         self._field_matrix = complex_map
 
     def _partition_to_matrix(self, partition: np.ndarray):
-        repeater = int(np.ceil(self.pixel_numbers[0] / partition.shape[0]))
-        matrix = np.repeat(partition, repeater, axis=0)
-        matrix = np.repeat(matrix, repeater, axis=1)
-        matrix = DeformableMirror.crop_center(matrix, self.pixel_numbers[0])
+        matrix = matproc.partition_to_matrix(partition, self.field)
+        matrix = matproc.crop_center(matrix, self.pixel_numbers[0])
         return matrix
     
     def retrieve_phase_map(self, partition_size: tuple[int, int]):
         if phase_map.shape == tuple(self.pixel_numbers):
             return self.phase
         else:
-            return DeformableMirror._matrix_to_partition(self.phase, partition_size)
-    
-    @staticmethod
-    def _matrix_to_partition(matrix, partition_size: tuple[int, int]):
-        matrix = DeformableMirror._inverse_repeat(matrix, repeats=partition_size[0], axis=0)
-        return DeformableMirror._inverse_repeat(matrix, repeats=partition_size[1], axis=1)
-
-    @staticmethod
-    def _inverse_repeat(matrix, repeats, axis):
-        if isinstance(repeats, int):
-            indices = np.arange(matrix.shape[axis] / repeats, dtype=int) * repeats
-        else:  # assume array_like of int
-            indices = np.cumsum(repeats) - 1
-        return matrix.take(indices, axis)
-
-    @staticmethod
-    def crop_center(img, crop):
-        y, x = img.shape
-        startx = x//2 - crop//2
-        starty = y//2 - crop//2
-        return img[starty:starty+crop, startx:startx+crop]
+            return matproc.matrix_to_partition(self.phase, partition_size)
     
     def export_to_grid(self, grid: Grid, beam_type: beams.Beam, beam_kwargs):
         beam = beam_type(grid)
@@ -132,16 +110,6 @@ class DeformableMirror(Grid):
         flat_map[~mask_flat] = vec
         flat_map[mask_flat] = np.nan
         return np.reshape(flat_map, newshape=(34,34), order=order)
-
-    @staticmethod
-    def vec32_to_vec36(vec):
-        vec = np.ravel(vec)
-        phases = np.angle(vec)
-        return np.ravel(np.r_[
-            np.r_[[0], phases[:4], [0]][None], 
-            phases[4:-4].reshape(4, 6), 
-            np.r_[[0], phases[-4:], [0]][None],
-        ])[None]
     
     @staticmethod
     def rad_to_volt(vector: np.ndarray, coeff: float = 14.6, offset: float = 50.0):
@@ -153,7 +121,7 @@ class DeformableMirror(Grid):
 
     @property
     def full_field_vector(self):
-        return self.matrix_to_vector(self.field)
+        return matproc.matrix_to_vector(self.field)
     
     @property
     def field_vector(self):
@@ -190,32 +158,15 @@ class DeformableMirror(Grid):
         plt.colorbar(pl0, ax=axs[0])
         plt.colorbar(pl1, ax=axs[1])
 
-    def plot_full(self, show_extent: bool = True):
-        fig, axs = plt.subplots(1, 2, figsize=(13,4))
-        if show_extent:
-            extent = np.array([np.min(self.x), np.max(self.x), np.min(self.y), np.max(self.y)]) * 1e6
-            pl0 = axs[0].imshow(self.intensity, extent=extent, cmap="hot")
-            pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
-            axs[0].set_xlabel("x [um]")
-            axs[1].set_xlabel("x [um]")
-            axs[0].set_ylabel("y [um]")
-            axs[1].set_ylabel("y [um]")
-        else:
-            pl0 = axs[0].imshow(self.intensity, cmap="hot")
-            pl1 = axs[1].imshow(self.phase, cmap="twilight")
-        axs[0].set_title(f"Intensity on mirror plane")
-        axs[1].set_title(f"Phase on mirror plane")
-        plt.colorbar(pl0, ax=axs[0])
-        plt.colorbar(pl1, ax=axs[1])
-
     def __str__(self) -> str:
         return (
             f"{__class__.__name__} instance with:\n"
-        )  
+        )
+    
 
 
 if __name__ == "__main__":
-    # dm = DeformableMirror(pixel_numbers=(128,128))
+    dm = DeformableMirror(pixel_numbers=(128,128))
     dm = DeformableMirror()
     phase_map = 2*np.pi*np.random.rand(6,6)
     dm.apply_phase_map(phase_map)
@@ -228,9 +179,17 @@ if __name__ == "__main__":
     dm.plot()
     plt.show()
 
-    # newgrid = Grid(pixel_size=dm.pixel_size/2, pixel_numbers=(78,78))
-    # beam = beams.BesselBeam(newgrid)
+
+
+    # dm = MockDeformableMirror()
+    # phase_map = 2*np.pi*np.random.rand(6,6)
+    # dm.apply_phase_map(phase_map)
+
+    # grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
+    # beam = beams.BesselBeam(grid)
     # beam.compute(amplitude=1, width=1500e-6, centers=[0,0], order=1)
-    # beam = dm.export_to_beam(beam, keep_beam_phases=False)
-    # beam.plot(complex=True)
+    # dm.apply_amplitude_map(beam.amplitude)
+    
+    # dm.plot()
     # plt.show()
+
