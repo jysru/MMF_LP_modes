@@ -16,6 +16,7 @@ class GrinFiberBeamCoupler(GrinSpeckle):
         super().__init__(fiber, beam.grid, N_modes, noise_std)
         self.beam = beam
         self.field = self.beam.field
+        self.coupling_matrix = None
         self.decompose(self.N_modes)
 
     def decompose(self, N_modes: int = 10):
@@ -44,6 +45,12 @@ class GrinFiberBeamCoupler(GrinSpeckle):
 
         self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
         self.orient_coeffs = orient_coeffs
+
+    def propagate(self, complex: bool = True):
+        self.coupling_matrix = self.fiber.modes_coupling_matrix(complex=complex)
+        out_coeffs = np.dot(self.coupling_matrix[:self.modes_coeffs.shape[0], :self.modes_coeffs.shape[0]], self.modes_coeffs)
+        self.compose(coeffs=(out_coeffs, self.orient_coeffs))
+        return self.field
         
     @property
     def speckle(self):
@@ -109,11 +116,15 @@ if __name__ == "__main__":
     beam.compute(amplitude=1, width=3500e-6, centers=[0,0])
     dm.apply_amplitude_map(beam.amplitude)
     dm.reduce_by(200)
-    dm.plot()
+    # dm.plot()
 
     beam.grid.reduce_by(200)
     beam.field = dm._field_matrix
-    coupled = GrinFiberBeamCoupler(beam=beam, N_modes=25)
+    coupled = GrinFiberBeamCoupler(beam=beam, N_modes=55)
+    coupled.plot(cmap='gray')
+    coupled.propagate(complex=False)
     coupled.plot(cmap='gray')
     print(coupled)
     plt.show()
+
+    
