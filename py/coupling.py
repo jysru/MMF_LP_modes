@@ -93,13 +93,8 @@ class GrinFiberBeamCoupler(GrinSpeckle):
 
     def __str__(self) -> str:
         return (
-            f"\t - Sum of intensity coeffs: {np.sum(np.square(np.abs(self.modes_coeffs)))}"
-            f"\t - Intensity coeffs:"
-            f"{np.square(np.abs(self.modes_coeffs))}"
-            f"\t - Phases coeffs:"
-            f"{np.angle(self.modes_coeffs)}"
-            f"\t - Orient coeffs:"
-            f"{self.orient_coeffs}"
+            f"\t - Coupled power: {np.sum(np.square(np.abs(self.modes_coeffs)))}\n"
+            f"\t - Number of modes: {self.N_modes}"
         )
 
 
