@@ -164,27 +164,103 @@ class DeformableMirror(Grid):
         )
     
 
+class MockDeformableMirror(Grid):
+
+    def __init__(self, pixel_size: float = 1e-6, pixel_numbers: tuple[int, int] = (128, 128), offsets: tuple[float, float] = (0.0, 0.0)) -> None:
+        super().__init__(pixel_size, pixel_numbers, offsets)
+        self._field_matrix = None
+        self._field_matrix = self._init_field_matrix()
+        self._phase_map = None
+
+    def _init_field_matrix(self) -> np.ndarray:
+        moduli = np.ones(shape=tuple(self.pixel_numbers))
+        phases = np.zeros(shape=tuple(self.pixel_numbers))
+        return moduli * np.exp(1j * phases)
+
+    def apply_mask(self, matrix: np.ndarray, mask_value: float = 0):
+        mask = np.zeros(shape=self.pixel_numbers, dtype=bool)
+        mask[self.R > deformable_mirror_diameter/2] = True
+        matrix[mask] = mask_value
+        return matrix
+
+    def apply_phase_map(self, phase_map):
+        if phase_map.shape != tuple(self.pixel_numbers):
+            self._phase_map = phase_map
+            phase_map = self._partition_to_matrix(phase_map)
+        self._field_matrix = np.abs(self._field_matrix) * np.exp(1j * phase_map)
+        self._field_matrix = self.apply_mask(self._field_matrix)
+
+    def apply_amplitude_map(self, amplitude_map):
+        if amplitude_map.shape != tuple(self.pixel_numbers):
+            amplitude_map = self._partition_to_matrix(amplitude_map)
+        self._field_matrix = np.abs(amplitude_map) * np.exp(1j * self.phase)
+        self._field_matrix = self.apply_mask(self._field_matrix)
+
+    def apply_complex_map(self, complex_map):
+        if complex_map.shape != tuple(self.pixel_numbers):
+            complex_map = self._partition_to_matrix(complex_map)
+        self._field_matrix = self.apply_mask(complex_map)
+
+    def _partition_to_matrix(self, partition: np.ndarray):
+        repeater_axis0 = int(np.ceil(deformable_mirror_diameter / self.pixel_size / partition.shape[0]))
+        repeater_axis1 = int(np.ceil(deformable_mirror_diameter / self.pixel_size / partition.shape[1]))
+        matrix = np.repeat(partition, repeater_axis0, axis=0)
+        matrix = np.repeat(matrix, repeater_axis1, axis=1)
+        pad_amount = int((self.pixel_numbers[0] - matrix.shape[0]) // 2)
+        return np.pad(matrix, pad_width=pad_amount)
+
+    @property
+    def field(self):
+        return self._field_matrix
+
+    @property
+    def amplitude(self):
+        return np.abs(self._field_matrix)
+    
+    @property
+    def intensity(self):
+        return np.square(self.amplitude)
+    
+    @property
+    def phase(self):
+        return np.angle(self._field_matrix)
+    
+    def plot(self, show_extent: bool = True, apply_mask: bool=True):
+        intens = self.apply_mask(self.intensity) if apply_mask else intens
+        phase = self.apply_mask(self.phase) if apply_mask else phase
+
+        fig, axs = plt.subplots(1, 2, figsize=(13,4))
+        if show_extent:
+            extent = np.array([np.min(self.x), np.max(self.x), np.min(self.y), np.max(self.y)]) * 1e6
+            pl0 = axs[0].imshow(intens, extent=extent, cmap="hot")
+            pl1 = axs[1].imshow(phase, extent=extent, cmap="twilight")
+            axs[0].set_xlabel("x [um]")
+            axs[1].set_xlabel("x [um]")
+            axs[0].set_ylabel("y [um]")
+            axs[1].set_ylabel("y [um]")
+        else:
+            pl0 = axs[0].imshow(intens, cmap="hot")
+            pl1 = axs[1].imshow(phase, cmap="twilight")
+        axs[0].set_title(f"Intensity on mirror plane")
+        axs[1].set_title(f"Phase on mirror plane")
+        plt.colorbar(pl0, ax=axs[0])
+        plt.colorbar(pl1, ax=axs[1])
+
+    def __str__(self) -> str:
+        return (
+            f"{__class__.__name__} instance with:\n"
+        )
+
+
+    
+
 
 if __name__ == "__main__":
-    dm = DeformableMirror(pixel_numbers=(128,128))
-    dm = DeformableMirror()
     phase_map = 2*np.pi*np.random.rand(6,6)
-    dm.apply_phase_map(phase_map)
 
-    grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
-    beam = beams.BesselBeam(grid)
-    beam.compute(amplitude=1, width=1500e-6, centers=[0,0], order=1)
-    dm.apply_amplitude_map(beam.amplitude)
-    
-    dm.plot()
-    plt.show()
-
-
-
-    # dm = MockDeformableMirror()
-    # phase_map = 2*np.pi*np.random.rand(6,6)
+    # dm = DeformableMirror(pixel_numbers=(128,128))
+    # dm = DeformableMirror()
     # dm.apply_phase_map(phase_map)
-
     # grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
     # beam = beams.BesselBeam(grid)
     # beam.compute(amplitude=1, width=1500e-6, centers=[0,0], order=1)
@@ -192,4 +268,17 @@ if __name__ == "__main__":
     
     # dm.plot()
     # plt.show()
+
+
+
+    dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
+    dm.apply_phase_map(phase_map)
+
+    grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
+    beam = beams.GaussianBeam(grid)
+    beam.compute(amplitude=1, width=3500e-6, centers=[0,0])
+    dm.apply_amplitude_map(beam.amplitude)
+    
+    dm.plot()
+    plt.show()
 
