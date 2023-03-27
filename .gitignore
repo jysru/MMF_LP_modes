@@ -1,3 +1,4 @@
 .vscode
 *.asv
 *.mat
+__pycache__*
