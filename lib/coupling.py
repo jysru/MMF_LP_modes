@@ -46,8 +46,11 @@ class GrinFiberBeamCoupler(GrinSpeckle):
         self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
         self.orient_coeffs = orient_coeffs
 
-    def propagate(self, complex: bool = True):
-        self.coupling_matrix = self.fiber.modes_coupling_matrix(complex=complex)
+    def propagate(self, matrix: np.ndarray = None, complex: bool = True):
+        if matrix is None:
+            self.coupling_matrix = self.fiber.modes_coupling_matrix(complex=complex)
+        else:
+            self.coupling_matrix = matrix
         out_coeffs = np.dot(self.coupling_matrix[:self.modes_coeffs.shape[0], :self.modes_coeffs.shape[0]], self.modes_coeffs)
         self.compose(coeffs=(out_coeffs, self.orient_coeffs))
         return self.field
@@ -107,20 +110,20 @@ class GrinFiberBeamCoupler(GrinSpeckle):
 
 if __name__ == "__main__":
 
-    phase_map = 2*np.pi*np.random.rand(6,6)
+    phase_map = 2*np.pi*np.random.rand(12,12)
     dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
     dm.apply_phase_map(phase_map)
 
     grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
     beam = beams.GaussianBeam(grid)
-    beam.compute(amplitude=1, width=5100e-6, centers=[0,0])
+    beam.compute(amplitude=1, width=3500e-6, centers=[0,0])
     dm.apply_amplitude_map(beam.amplitude)
     dm.reduce_by(200)
     dm.plot()
 
     beam.grid.reduce_by(200)
     beam.field = dm._field_matrix
-    coupled = GrinFiberBeamCoupler(beam=beam, N_modes=20)
+    coupled = GrinFiberBeamCoupler(beam=beam, N_modes=55)
     print(f"Coupled energy: {np.sum(np.square(np.abs(coupled.field)))}")
     coupled.plot(cmap='gray')
     speck = coupled.propagate(complex=False)
