@@ -1,5 +1,8 @@
+import os
+from scipy.io import savemat
 import numpy as np
 import matplotlib.pyplot as plt
+
 
 from grid import Grid
 from fiber import GrinFiber
@@ -85,10 +88,15 @@ class SimulatedGrinSpeckleOutputDataset:
         self._fiber = fiber
         self._noise_std = noise_std
         self._fields = None
+        self._phase_dims = None
+        self._phase_maps = None
         self._coupling_matrix = self._fiber.modes_coupling_matrix(complex=complex)
 
-    def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200):
+    def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
+        self._phase_dims = phases_dim
+        self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+
         dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
         dm_grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
         beam = GaussianBeam(dm_grid)
@@ -106,19 +114,45 @@ class SimulatedGrinSpeckleOutputDataset:
             coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber, N_modes=self._N_modes)
             propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
             coupled_out = GrinFiberCoupler(propagated_field, beam.grid, N_modes=self._N_modes)
+
+            self._phase_maps[:,:,i] = phase_map
             self._fields[:,:,i] = coupled_out.field
 
             dm.magnify_by(magnification)
             beam.grid.magnify_by(magnification)
+            if verbose:
+                print(f"Computed couple {i+1}/{self.length}")
 
     @property
     def length(self):
         return self._length
+    
+    @property
+    def phases_size(self):
+        return np.prod(np.array(list(self._phase_dims)))
 
     @property
     def intensities(self):
         val = np.square(np.abs(self._fields))
         return np.abs(val + self._noise_std * np.random.randn(*val.shape))
+    
+    def export(self, path: str = '.', name: str = None, verbose: bool = True):
+        if name is None:
+            default_name = f"synth_dset_grin_Nmodes={self._N_modes}_len={self.length}_mirr={self.phases_size}"
+            name = default_name
+        savename = os.path.join(path, f"{name}.mat")
+
+        savemat(
+                file_name = savename,
+                mdict = {
+                    'phase_maps': self._phase_maps, 'intens': self.intensities,
+                    'coupling_matrix': self._coupling_matrix,
+                    'length': self.length, 'N_modes': self._N_modes,
+                }
+            )
+        
+        if verbose:
+            print(f"Dataset saved: {savename}")
     
     def __getitem__(self, idx):
         return self.intensities[:, :, idx]
@@ -138,10 +172,13 @@ if __name__ == "__main__":
     prof.enable()
     dset = SimulatedGrinSpeckleOutputDataset(fiber, grid, length=3, N_modes=55)
     dset.compute(phases_dim=(6,6))
+    dset.export()
     prof.disable()
 
     stats = pstats.Stats(prof).strip_dirs().sort_stats("cumtime")
     stats.print_stats(10) # top 10 rows
+
+
     # plt.figure()
     # plt.imshow(dset[0], cmap='gray')
     # plt.colorbar()
