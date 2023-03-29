@@ -18,6 +18,9 @@ class Beam(ABC):
     def _add_offsets(self, offsets: list[int]= None) -> None:
         self.centers = self.grid.offsets + np.array(offsets) if offsets else self.grid.offsets
 
+    def normalize_by_energy(self):
+        self.field /= np.sqrt(self.energy)
+
     @abstractmethod
     def compute(self):
         return
