@@ -7,7 +7,7 @@ from modes import GrinLPMode
 from speckle import GrinSpeckle
 from beams import GaussianBeam
 from devices import MockDeformableMirror
-from coupling import GrinFiberBeamCoupler
+from coupling import GrinFiberCoupler
 
 
 class GrinLPDataset:
@@ -87,13 +87,13 @@ class SimulatedGrinSpeckleOutputDataset:
         self._fields = None
         self._coupling_matrix = self._fiber.modes_coupling_matrix(complex=complex)
 
-    def compute(self, phases_dim: tuple[int, int] = (6,6), complex: bool = True, beam_width: float = 5100e-6, magnification: float = 200):
+    def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200):
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
-
         dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
-        grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
-        beam = GaussianBeam(grid)
+        dm_grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
+        beam = GaussianBeam(dm_grid)
         beam.compute(width=beam_width)
+        beam.normalize_by_energy()
         dm.apply_amplitude_map(beam.amplitude)
 
         for i in range(self.length):
@@ -101,10 +101,12 @@ class SimulatedGrinSpeckleOutputDataset:
             dm.apply_phase_map(phase_map)
             dm.reduce_by(magnification)
             beam.grid.reduce_by(magnification)
-
             beam.field = dm._field_matrix
-            coupled = GrinFiberBeamCoupler(beam=beam, N_modes=self._N_modes)
-            self._fields[:,:,i] = coupled.propagate(matrix=self._coupling_matrix)
+
+            coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber, N_modes=self._N_modes)
+            propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
+            coupled_out = GrinFiberCoupler(propagated_field, beam.grid, N_modes=self._N_modes)
+            self._fields[:,:,i] = coupled_out.field
 
             dm.magnify_by(magnification)
             beam.grid.magnify_by(magnification)
@@ -125,16 +127,26 @@ class SimulatedGrinSpeckleOutputDataset:
 if __name__ == "__main__":
     grid = Grid(pixel_size=0.5e-6)
     fiber = GrinFiber()
-    dset = GrinLPDataset(fiber, grid, N_modes=10)
-    dset = GrinLPSpeckleDataset(fiber, grid, length=5, N_modes=10)
-    dset = SimulatedGrinSpeckleOutputDataset(fiber, grid, length=10, N_modes=45)
-    dset.compute(complex=True)
+    # dset = GrinLPDataset(fiber, grid, N_modes=10)
+    # dset = GrinLPSpeckleDataset(fiber, grid, length=5, N_modes=10)
 
-    plt.figure()
-    plt.imshow(dset[0], cmap='gray')
-    plt.colorbar()
 
-    plt.figure()
-    plt.imshow(dset[3], cmap='gray')
-    plt.colorbar()
-    plt.show()
+    import cProfile as profile
+    import pstats
+
+    prof = profile.Profile()
+    prof.enable()
+    dset = SimulatedGrinSpeckleOutputDataset(fiber, grid, length=3, N_modes=55)
+    dset.compute(phases_dim=(6,6))
+    prof.disable()
+
+    stats = pstats.Stats(prof).strip_dirs().sort_stats("cumtime")
+    stats.print_stats(10) # top 10 rows
+    # plt.figure()
+    # plt.imshow(dset[0], cmap='gray')
+    # plt.colorbar()
+
+    # plt.figure()
+    # plt.imshow(dset[3], cmap='gray')
+    # plt.colorbar()
+    # plt.show()
