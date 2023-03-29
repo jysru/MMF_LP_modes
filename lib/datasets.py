@@ -111,9 +111,9 @@ class SimulatedGrinSpeckleOutputDataset:
             beam.grid.reduce_by(magnification)
             beam.field = dm._field_matrix
 
-            coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber, N_modes=self._N_modes)
+            coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
             propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
-            coupled_out = GrinFiberCoupler(propagated_field, beam.grid, N_modes=self._N_modes)
+            coupled_out = GrinFiberCoupler(propagated_field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
 
             self._phase_maps[:,:,i] = phase_map
             self._fields[:,:,i] = coupled_out.field
