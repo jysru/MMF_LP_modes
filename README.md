@@ -8,6 +8,7 @@ Compute LP modes from GRIN fibers. The modes are computed using analytical formu
 Use in virtual environment or you own environment:
 ```bash
 $ python -m pip install -r requirements.txt
+$ pip install -e .
 ```
 
 
