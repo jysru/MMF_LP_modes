@@ -115,6 +115,18 @@ class GrinSpeckle():
         val = val / np.max(val)
         return np.abs(val + self.noise_std * np.random.randn(*val.shape))
     
+    @property
+    def coeffs_intensity(self):
+        return np.square(np.abs(self.modes_coeffs))
+    
+    @property
+    def total_coeffs_intensity(self):
+        return np.sum(np.square(np.abs(self.modes_coeffs)))
+    
+    @property
+    def coeffs_phases(self):
+        return np.angle(self.modes_coeffs)
+    
     def plot(self, cmap: str = 'gray', complex: bool = False, complex_hsv: bool = False):
         r = self.fiber.radius * 1e6
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * 1e6
@@ -156,40 +168,42 @@ class GrinSpeckle():
             ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
             plt.colorbar(pl, ax=ax)
             return (fig, ax, pl)
-
+        
+    # def plot_coefficients(self):
+    #     fig = plt.figure()
+    #     ax = plt.gca()
+    #     pl = plt.plot(np.square(np), extent=extent)
+    #     ax.add_patch(circle1)
+    #     ax.set_xlabel("x [um]")
+    #     ax.set_ylabel("x [um]")
+    #     ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
+    #     return (fig, ax, pl)
 
 
     def _sanity_checker(self):
         coeffs, orients = self.decompose(N_modes=self.N_modes)
 
-        print(f"\t - Sum of intensity coeffs: {np.sum(np.square(np.abs(self.modes_coeffs)))}")
-        print(f"\t - Sum of decomposition intensity coeffs: {np.sum(np.square(np.abs(coeffs)))}")
-
-        print(f"\t - Intensity coeffs:")
-        print(np.square(np.abs(self.modes_coeffs)))
-        print(f"\t - Decomposition intensity coeffs:")
-        print(np.square(np.abs(coeffs)))
-
-        print(f"\t - Phases coeffs:")
-        print(np.angle(self.modes_coeffs))
-        print(f"\t - Decomposition phases coeffs:")
-        print(np.angle(coeffs))
-
-        print(f"\t - Orient coeffs:")
-        print(self.orient_coeffs)
-        print(f"\t - Decomposition orient coeffs:")
-        print(orients)
+        print(
+            f"\n\t Speckle sanity checker ({self.N_modes} modes):\n\n"
+            f"\t - Sum of intensity coefficients: {self.total_coeffs_intensity}\n"
+            f"\t - Sum of decomposition intensity coefficients: {np.sum(np.square(np.abs(coeffs)))}\n"
+            f"\t - Intensity coefficients:\n{self.coeffs_intensity}\n"
+            f"\t - Decomposition intensity coefficients:\n{np.square(np.abs(coeffs))}\n"
+            f"\t - Phases coefficients:\n{self.coeffs_phases}\n"
+            f"\t - Decomposition phases coefficients:\n{np.angle(coeffs)}\n"
+            f"\t - Orientation coefficients:\n{self.orient_coeffs}\n"
+            f"\t - Decomposition orientation ccoefficients:\n{orients}\n"
+            f"\n\t End\n\n"
+        )
 
     def __str__(self) -> str:
         return (
-            f"\t - Sum of intensity coefficients: {np.sum(np.square(np.abs(self.modes_coeffs)))}\n"
+            f"\t {__class__.__name__} instance ({self.N_modes} modes) with:\n"
+            f"\t - Sum of intensity coefficients: {self.total_coeffs_intensity}\n"
             f"\t - Number of modes: {self.N_modes}\n"
-            f"\t - Intensity coefficients:\n"
-            f"{np.square(np.abs(self.modes_coeffs))}\n"
-            f"\t - Phase coefficients:\n"
-            f"{np.angle(self.modes_coeffs)}\n"
-            f"\t - Orientation coefficients:\n"
-            f"{self.orient_coeffs}\n"
+            f"\t - Intensity coefficients:\n{self.coeffs_intensity}\n"
+            f"\t - Phase coefficients:\n{self.coeffs_phases}\n"
+            f"\t - Orientation coefficients:\n{self.orient_coeffs}\n"
         )
 
 
@@ -200,4 +214,5 @@ if __name__ == "__main__":
     speckle.compose()
     speckle._sanity_checker()
     speckle.plot(complex=True)
+    print(speckle)
     plt.show()
