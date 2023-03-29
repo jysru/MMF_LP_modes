@@ -54,11 +54,13 @@ class TestGrinLPMode(unittest.TestCase):
 
         modes_sum = 0
         for i in range(15):
-            mode1 = GrinLPMode(fiber._neff_hnm[i, 2], fiber._neff_hnm[i, 3])
-            mode2 = GrinLPMode(fiber._neff_hnm[i + 1, 2], fiber._neff_hnm[i + 1, 3])
-            mode1.compute(fiber, grid)
-            mode2.compute(fiber, grid)
-            modes_sum += self.power_overlap_integral(mode1._fields, mode2._fields)
+            mode_i = GrinLPMode(fiber._neff_hnm[i, 2], fiber._neff_hnm[i, 3])
+            mode_i.compute(fiber, grid)
+            for j in range(15):
+                if i != j:
+                    mode_j = GrinLPMode(fiber._neff_hnm[j, 2], fiber._neff_hnm[j, 3])
+                    mode_j.compute(fiber, grid)
+                    modes_sum += self.power_overlap_integral(mode_i._fields, mode_j._fields)
         self.assertAlmostEqual(modes_sum, 0)
         
     @staticmethod
