@@ -25,13 +25,12 @@ $ pip install -e .
 
 ## Examples
 
-To be written in details...
+- See [./notebooks/tutorial.ipynb](./notebooks/tutorial.ipynb) for basic library usage
 
 
 ## To-Do
 
 - Refactor architecture: Speckle is a sum of scalar fields, Beam is a scalar field, MockDeformableMirror is a particular scalar field.
-- Add tests.
 - Profile code and speed-up time consuming functions (particularly for heavy dataset generation).
 - Add support for Step-Index fibers.
 
