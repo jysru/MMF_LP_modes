@@ -169,16 +169,20 @@ class GrinSpeckle():
             plt.colorbar(pl, ax=ax)
             return (fig, ax, pl)
         
-    # def plot_coefficients(self):
-    #     fig = plt.figure()
-    #     ax = plt.gca()
-    #     pl = plt.plot(np.square(np), extent=extent)
-    #     ax.add_patch(circle1)
-    #     ax.set_xlabel("x [um]")
-    #     ax.set_ylabel("x [um]")
-    #     ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
-    #     return (fig, ax, pl)
+    def plot_coefficients(self):
+        x = self.fiber._neff_hnm[:self.N_modes,1]
 
+        fig = plt.figure()
+        ax = plt.gca()
+        pl = plt.bar(x, self.coeffs_intensity * 100)
+        # pl = plt.plot(self.coeffs_intensity * 100)
+        ax.set_xlabel("LP mode linear index")
+        ax.set_ylabel("Energy percentage [%]")
+        ax.set_title(
+            f"Energy percentage on LP modes\n"
+            f"({self.N_modes} modes, total energy: {self.total_coeffs_intensity * 100:2.1f}%)"
+        )
+        return (fig, ax, pl)
 
     def _sanity_checker(self):
         coeffs, orients = self.decompose(N_modes=self.N_modes)
@@ -214,5 +218,5 @@ if __name__ == "__main__":
     speckle.compose()
     speckle._sanity_checker()
     speckle.plot(complex=True)
-    print(speckle)
+    speckle.plot_coefficients()
     plt.show()
