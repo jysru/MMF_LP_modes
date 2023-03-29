@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from grid import Grid
-from fiber import GrinFiber
+from lib.grid import Grid
+from lib.fiber import GrinFiber
 
 class GrinLPMode():
 
@@ -41,7 +41,7 @@ class GrinLPMode():
         self._fields = np.zeros(shape=(len(grid.x), len(grid.y), 2))
         self._fields[:,:,0] = fac1 * fac2 * fac3 * Lmn * np.cos(self._fm * grid.A + self.theta0)
         self._fields[:,:,1] = fac1 * fac2 * fac3 * Lmn * np.cos(self._fm * grid.A + self.theta0 + np.pi / 2 )
-        self._fields[:,:,1] = self._fields[:,:,1] / np.max(np.abs(self._fields[:,:,1])) * np.max(np.abs(self._fields[:,:,0]))
+        self._fields = self._fields / np.sqrt(self.energies)
 
     @property
     def _fn(self):
