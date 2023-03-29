@@ -45,7 +45,7 @@ class GrinFiber:
         if full:
             return matproc.square_random_toeplitz(self._N_modes, complex=complex, decay_width=decay_width)
         else:
-            return self._group_coupling_matrix()
+            return self._group_coupling_matrix(complex=complex)
 
     def _group_coupling_matrix(self, complex: bool = False):
         groups_neff, groups_indexes, groups_counts = np.unique(self._neff_hnm[:,0], return_index=True, return_counts=True)
@@ -96,8 +96,8 @@ class GrinFiber:
                 pl0 = axs[0].imshow(np.abs(matrix), cmap=cmap)
                 pl1 = axs[1].imshow(np.angle(matrix), cmap="twilight")
                 axs[0].set_xlabel("Input mode index")
-                axs[1].set_ylabel("Output mode index")
-                axs[0].set_xlabel("Input mode index")
+                axs[0].set_ylabel("Output mode index")
+                axs[1].set_xlabel("Input mode index")
                 axs[1].set_ylabel("Output mode index")
                 axs[0].set_title(f"GRIN fiber coupling matrix (amplitude)")
                 axs[1].set_title(f"GRIN fiber coupling matrix (phase)")
