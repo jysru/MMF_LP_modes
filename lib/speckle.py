@@ -170,16 +170,23 @@ class GrinSpeckle():
             return (fig, ax, pl)
         
     def plot_coefficients(self):
-        x = self.fiber._neff_hnm[:self.N_modes,1]
+        x = np.arange(self.N_modes)
+        nm = self.fiber._neff_hnm[:self.N_modes, 2:].astype(int)
+        nm_strings = [f"{nm[i,0]:d},{nm[i,1]:d}" for i in range(nm.shape[0])]
+        print(nm_strings)
 
-        fig = plt.figure()
+        fig = plt.figure(figsize=(15,7))
         ax = plt.gca()
         pl = plt.bar(x, self.coeffs_intensity * 100)
-        # pl = plt.plot(self.coeffs_intensity * 100)
-        ax.set_xlabel("LP mode linear index")
+        ax_t = ax.secondary_xaxis('top')
+        ax_t.tick_params(axis='x', direction='in')
+        ax_t.set_xlabel("LP mode linear index")
+
+        ax.set_xlabel(r"LP$_{n,m}$ mode")
+        ax.set_xticks(x, nm_strings, rotation='vertical')
         ax.set_ylabel("Energy percentage [%]")
         ax.set_title(
-            f"Energy percentage on LP modes\n"
+            f"Energy percentage on LP modes "
             f"({self.N_modes} modes, total energy: {self.total_coeffs_intensity * 100:2.1f}%)"
         )
         return (fig, ax, pl)
