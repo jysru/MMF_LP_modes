@@ -210,6 +210,7 @@ class GrinSpeckle():
     def __str__(self) -> str:
         return (
             f"\t {__class__.__name__} instance ({self.N_modes} modes) with:\n"
+            f"\t - Energy: {self.energy}\n"
             f"\t - Sum of intensity coefficients: {self.total_coeffs_intensity}\n"
             f"\t - Number of modes: {self.N_modes}\n"
             f"\t - Intensity coefficients:\n{self.coeffs_intensity}\n"
@@ -226,4 +227,5 @@ if __name__ == "__main__":
     speckle._sanity_checker()
     speckle.plot(complex=True)
     speckle.plot_coefficients()
+    print(speckle)
     plt.show()
