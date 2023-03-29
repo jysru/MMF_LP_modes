@@ -1,4 +1,5 @@
 setuptools
 numpy
 matplotlib
+pytest
 scipy
