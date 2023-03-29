@@ -157,6 +157,8 @@ class GrinSpeckle():
             plt.colorbar(pl, ax=ax)
             return (fig, ax, pl)
 
+
+
     def _sanity_checker(self):
         coeffs, orients = self.decompose(N_modes=self.N_modes)
 
@@ -177,6 +179,18 @@ class GrinSpeckle():
         print(self.orient_coeffs)
         print(f"\t - Decomposition orient coeffs:")
         print(orients)
+
+    def __str__(self) -> str:
+        return (
+            f"\t - Sum of intensity coefficients: {np.sum(np.square(np.abs(self.modes_coeffs)))}\n"
+            f"\t - Number of modes: {self.N_modes}\n"
+            f"\t - Intensity coefficients:\n"
+            f"{np.square(np.abs(self.modes_coeffs))}\n"
+            f"\t - Phase coefficients:\n"
+            f"{np.angle(self.modes_coeffs)}\n"
+            f"\t - Orientation coefficients:\n"
+            f"{self.orient_coeffs}\n"
+        )
 
 
 if __name__ == "__main__":
