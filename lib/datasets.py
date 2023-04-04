@@ -1,8 +1,8 @@
 import os
+import multiprocessing
 from scipy.io import savemat
 import numpy as np
 import matplotlib.pyplot as plt
-
 
 from lib.grid import Grid
 from lib.fiber import GrinFiber
@@ -11,6 +11,8 @@ from lib.speckle import GrinSpeckle
 from lib.beams import GaussianBeam
 from lib.devices import MockDeformableMirror
 from lib.coupling import GrinFiberCoupler
+
+default_nprocs = multiprocessing.cpu_count()
 
 
 class GrinLPDataset:
@@ -123,6 +125,67 @@ class SimulatedGrinSpeckleOutputDataset:
             if verbose:
                 print(f"Computed couple {i+1}/{self.length}")
 
+    def multiproc_compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
+        self._phase_dims = phases_dim
+        self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
+        self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+
+        dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
+        dm_grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
+        beam = GaussianBeam(dm_grid)
+        beam.compute(width=beam_width)
+        beam.normalize_by_energy()
+        dm.apply_amplitude_map(beam.amplitude)
+
+        self._multiprocess_compute(phases_dim, dm, beam, magnification)
+
+    def _multiprocess_compute(self, phases_dim: tuple[int, int], dm: MockDeformableMirror, beam: GaussianBeam, magnification: int, loops_per_proc: int = 10):
+        async_results = []
+        divider = self.length // default_nprocs
+        remainder = self.length % default_nprocs
+        loops_per_proc = divider * np.ones(shape=(default_nprocs,), dtype=int)
+        loops_per_proc[-1] = loops_per_proc[-1] + remainder
+
+        with multiprocessing.Pool(processes=default_nprocs) as pool:
+            for proc in range(default_nprocs):
+                async_results.append(pool.apply_async(self._compute_task, args=(phases_dim, dm, beam, magnification, loops_per_proc[proc])))
+            pool.close()
+            pool.join()
+
+        # self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
+        # self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+        for i, result in enumerate(async_results):
+            phase_maps, fields = result.get()
+            if i==0:
+                self._phase_maps = phase_maps
+                self._fields = fields
+            else:
+                self._phase_maps = np.concatenate((self._phase_maps, phase_maps), axis=2)
+                self._fields = np.concatenate((self._fields, fields), axis=2)
+    
+    def _compute_task(self, phases_dim: tuple[int, int], dm: MockDeformableMirror, beam: GaussianBeam, magnification: int, loops_per_proc: int,):
+        _phase_maps = np.zeros(shape=(phases_dim + (loops_per_proc,)))
+        _fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (loops_per_proc,)), dtype=np.complex128)
+
+        for i in range(loops_per_proc):
+            phase_map = 2*np.pi*np.random.rand(*phases_dim)
+            dm.apply_phase_map(phase_map)
+            dm.reduce_by(magnification)
+            beam.grid.reduce_by(magnification)
+            beam.field = dm._field_matrix
+
+            coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
+            propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
+            coupled_out = GrinFiberCoupler(propagated_field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
+
+            _phase_maps[:,:,i] = phase_map
+            _fields[:,:,i] = coupled_out.field
+
+            dm.magnify_by(magnification)
+            beam.grid.magnify_by(magnification)
+
+        return _phase_maps, _fields
+
     @property
     def length(self):
         return self._length
@@ -164,20 +227,19 @@ if __name__ == "__main__":
     # dset = GrinLPDataset(fiber, grid, N_modes=10)
     # dset = GrinLPSpeckleDataset(fiber, grid, length=5, N_modes=10)
 
-
     import cProfile as profile
     import pstats
 
     prof = profile.Profile()
     prof.enable()
-    dset = SimulatedGrinSpeckleOutputDataset(fiber, grid, length=3, N_modes=55)
-    dset.compute(phases_dim=(6,6))
+    dset = SimulatedGrinSpeckleOutputDataset(fiber, grid, length=200, N_modes=55)
+    dset.multiproc_compute(phases_dim=(6,6))
+    # dset.compute(phases_dim=(6,6))
     dset.export()
     prof.disable()
 
     stats = pstats.Stats(prof).strip_dirs().sort_stats("cumtime")
     stats.print_stats(10) # top 10 rows
-
 
     # plt.figure()
     # plt.imshow(dset[0], cmap='gray')
