@@ -46,7 +46,7 @@ class TestCouplingGrinLPMode(unittest.TestCase):
         beam.normalize_by_energy()
 
         coupling = GrinFiberCoupler(beam.field, grid, fiber, N_modes=i_max)
-        coupling_ratio = np.sum(np.square(np.abs(coupling.speckle)))
+        coupling_ratio = np.sum(np.square(np.abs(coupling.field)))
         n = fiber._neff_hnm[:coupling.N_modes, 2]
         sum_centro = np.sum(coupling.coeffs_intensity[n == 0])
         sum_not_centro = np.sum(coupling.coeffs_intensity[n != 0])
