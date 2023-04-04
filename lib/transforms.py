@@ -47,11 +47,11 @@ def unitary_fourier_transform(field, pad: float = None):
 if __name__ == "__main__":
     grid = Grid(pixel_size=2e-6)
     beam = GaussianBeam(grid)
-    beam.compute(amplitude=1, width=20e-6, centers=[0,0])
-    print(beam)
+    beam.compute(width=20e-6, centers=[0,0])
+    beam.normalize_by_energy()
 
     field = beam.field
-    fres = fresnel_transform(field, grid, delta_z=1000e-6)
+    fres = fresnel_transform(field, grid, delta_z=3000e-6)
     four = fourier_transform(field, pad=1)
 
     print("Energies:\n"
@@ -60,21 +60,17 @@ if __name__ == "__main__":
           f" - Fourier: {np.sum(np.abs(four)**2)}\n",
     )
 
-    fig, axs = plt.subplots(1, 3, figsize=(12, 6))
-    pl0 = axs[0].imshow(np.abs(field))
-    axs[0].set_title("Field")
+    fig, axs = plt.subplots(1, 3, figsize=(15, 6))
+    pl0 = axs[0].imshow(np.square(np.abs(field)))
+    axs[0].set_title("Initial intensity")
     plt.colorbar(pl0, ax=axs[0])
 
-    pl1 = axs[1].imshow(np.abs(fres))
-    axs[1].set_title("Fresnel")
+    pl1 = axs[1].imshow(np.square(np.abs(fres)))
+    axs[1].set_title("Fresnel intensity")
     plt.colorbar(pl1, ax=axs[1])
 
-    pl2 = axs[2].imshow(np.abs(four))
-    axs[2].set_title("Fourier")
+    pl2 = axs[2].imshow(np.square(np.abs(four)))
+    axs[2].set_title("Fourier intensity")
     plt.colorbar(pl2, ax=axs[2])
 
-
-
-
-    
     plt.show()
