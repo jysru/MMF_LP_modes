@@ -125,7 +125,7 @@ class SimulatedGrinSpeckleOutputDataset:
             if verbose:
                 print(f"Computed couple {i+1}/{self.length}")
 
-    def multiproc_compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
+    def multiproc_compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, n_procs: int = default_nprocs - 1):
         self._phase_dims = phases_dim
         self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
@@ -137,17 +137,21 @@ class SimulatedGrinSpeckleOutputDataset:
         beam.normalize_by_energy()
         dm.apply_amplitude_map(beam.amplitude)
 
-        self._multiprocess_compute(phases_dim, dm, beam, magnification)
+        self._multiprocess_compute(phases_dim, dm, beam, magnification, n_procs)
 
-    def _multiprocess_compute(self, phases_dim: tuple[int, int], dm: MockDeformableMirror, beam: GaussianBeam, magnification: int, loops_per_proc: int = 10):
+    def _multiprocess_compute(self, phases_dim: tuple[int, int], dm: MockDeformableMirror, beam: GaussianBeam, magnification: int, n_procs: int):
+        if n_procs > default_nprocs:
+            print(f"Coerced number of workers to {default_nprocs}")
+            n_procs = default_nprocs
+
         async_results = []
-        divider = self.length // default_nprocs
-        remainder = self.length % default_nprocs
-        loops_per_proc = divider * np.ones(shape=(default_nprocs,), dtype=int)
+        divider = self.length // n_procs
+        remainder = self.length % n_procs
+        loops_per_proc = divider * np.ones(shape=(n_procs,), dtype=int)
         loops_per_proc[-1] = loops_per_proc[-1] + remainder
 
-        with multiprocessing.Pool(processes=default_nprocs) as pool:
-            for proc in range(default_nprocs):
+        with multiprocessing.Pool(processes=n_procs) as pool:
+            for proc in range(n_procs):
                 async_results.append(pool.apply_async(self._compute_task, args=(phases_dim, dm, beam, magnification, loops_per_proc[proc])))
             pool.close()
             pool.join()
@@ -163,7 +167,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 self._phase_maps = np.concatenate((self._phase_maps, phase_maps), axis=2)
                 self._fields = np.concatenate((self._fields, fields), axis=2)
     
-    def _compute_task(self, phases_dim: tuple[int, int], dm: MockDeformableMirror, beam: GaussianBeam, magnification: int, loops_per_proc: int,):
+    def _compute_task(self, phases_dim: tuple[int, int], dm: MockDeformableMirror, beam: GaussianBeam, magnification: int, loops_per_proc: int):
         _phase_maps = np.zeros(shape=(phases_dim + (loops_per_proc,)))
         _fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (loops_per_proc,)), dtype=np.complex128)
 
