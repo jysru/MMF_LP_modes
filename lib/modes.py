@@ -1,9 +1,13 @@
+from functools import lru_cache
 import numpy as np
 import matplotlib.pyplot as plt
 
 from lib.grid import Grid
 from lib.fiber import GrinFiber
 
+lru_cache_default_size = 1024
+
+@lru_cache(maxsize=lru_cache_default_size)
 class GrinLPMode():
 
     def __init__(self, n: int, m: int, theta0: float = 0) -> None:
@@ -15,6 +19,7 @@ class GrinLPMode():
         self._y = None
         self._fields = None
 
+    @lru_cache(maxsize=lru_cache_default_size)
     def compute(self, fiber: GrinFiber, grid: Grid):
         self._radius = fiber.radius
         self._x = grid.x
