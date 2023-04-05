@@ -1,6 +1,7 @@
 import os
 import multiprocessing
 from scipy.io import savemat
+from scipy.linalg import toeplitz
 import numpy as np
 import matplotlib.pyplot as plt
 
@@ -13,6 +14,78 @@ from lib.devices import MockDeformableMirror
 from lib.coupling import GrinFiberCoupler
 
 default_nprocs = multiprocessing.cpu_count()
+
+
+class RandomDataset():
+
+    def __init__(self, phases_dim: int = 6, intens_dim: int = 96, length: int = 1000, noise_std: float = 0.0) -> None:
+        self.phases_dim = phases_dim
+        self.intens_dim = intens_dim
+        self.length = length
+        self.noise_std = noise_std
+        self.inputs = None
+        self.outputs = None
+        self.matrix = None
+        self.amplitude = None
+        self._energy = None
+        self.generate()
+
+    def gaussian_amplitude(self):
+        x = np.linspace(0, 1e-2, self.phases_dim)
+        xx, yy = np.meshgrid(x, x)
+        w = 4.5 * 1e-3
+        s = 5.0 * 1e-3
+        plane = np.exp(-((xx - s)**2 + (yy - s)**2) / w**2)
+        return plane.flatten()
+
+    def generate(self):
+        amplitude = self.gaussian_amplitude()
+        self.amplitude = np.reshape(amplitude, (1, np.square(self.phases_dim)))
+        self._energy = np.sum(np.square(np.abs(amplitude)))
+        self.amplitude = self.amplitude / np.sqrt(self._energy)
+
+        self.inputs = np.exp(1j * 2 * np.pi * np.random.rand(self.length, np.square(self.phases_dim)))
+        self.matrix = self.normalized_matrix()
+        self.outputs = np.dot(self.inputs, self.matrix.T)
+
+    def normalized_matrix(self, complex: bool = True):
+        r, l = np.random.rand(np.square(self.phases_dim), 1), np.random.rand(np.square(self.intens_dim), 1)
+        r = np.sqrt(r / np.sum(r))
+        l = np.sqrt(l / np.sum(l))
+        X = toeplitz(r, l)
+
+        if complex:
+            X = X * np.exp(1j * 2 * np.pi * np.random.rand(np.square(self.phases_dim), np.square(self.intens_dim)))
+        return X.T
+
+    @property
+    def intensities(self):
+        return np.square(np.abs(self.outputs))
+    
+    @property
+    def rank(self):
+        return np.linalg.rank(self.matrix)
+    
+    def export(self, path: str = '.', name: str = None, verbose: bool = True):
+        inputs = np.reshape(self.inputs, newshape=(self.phases_dim, self.phases_dim, self.length))
+        outputs = np.reshape(self.outputs, newshape=(self.intens_dim, self.intens_dim, self.length))
+
+        if name is None:
+            default_name = f"synth_random_dset_len={self.length}_in={self.phases_dim}_out={self.intens_dim}"
+            name = default_name
+        savename = os.path.join(path, f"{name}.mat")
+
+        savemat(
+                file_name = savename,
+                mdict = {
+                    'phase_maps': inputs, 'intens': np.square(np.abs(outputs)),
+                    'matrix': self.matrix,
+                    'length': self.length,
+                }
+            )
+        
+        if verbose:
+            print(f"Dataset saved: {savename}")
 
 
 class GrinLPDataset:
@@ -115,10 +188,9 @@ class SimulatedGrinSpeckleOutputDataset:
 
             coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
             propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
-            coupled_out = GrinFiberCoupler(propagated_field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
 
             self._phase_maps[:,:,i] = phase_map
-            self._fields[:,:,i] = coupled_out.field
+            self._fields[:,:,i] = propagated_field
 
             dm.magnify_by(magnification)
             beam.grid.magnify_by(magnification)
@@ -246,24 +318,24 @@ class SimulatedGrinSpeckleOutputDataset:
 
 
 if __name__ == "__main__":
-    grid = Grid(pixel_size=0.5e-6)
-    fiber = GrinFiber()
-    # dset = GrinLPDataset(fiber, grid, N_modes=10)
-    # dset = GrinLPSpeckleDataset(fiber, grid, length=5, N_modes=10)
+    # grid = Grid(pixel_size=0.5e-6)
+    # fiber = GrinFiber()
+    # # dset = GrinLPDataset(fiber, grid, N_modes=10)
+    # # dset = GrinLPSpeckleDataset(fiber, grid, length=5, N_modes=10)
 
-    import cProfile as profile
-    import pstats
+    # import cProfile as profile
+    # import pstats
 
-    prof = profile.Profile()
-    prof.enable()
-    dset = SimulatedGrinSpeckleOutputDataset(fiber, grid, length=10000, N_modes=55)
-    dset.multiproc_compute(phases_dim=(6,6))
-    # dset.compute(phases_dim=(6,6))
-    dset.export()
-    prof.disable()
+    # prof = profile.Profile()
+    # prof.enable()
+    # dset = SimulatedGrinSpeckleOutputDataset(fiber, grid, length=10000, N_modes=55)
+    # dset.multiproc_compute(phases_dim=(6,6))
+    # # dset.compute(phases_dim=(6,6))
+    # dset.export()
+    # prof.disable()
 
-    stats = pstats.Stats(prof).strip_dirs().sort_stats("cumtime")
-    stats.print_stats(10) # top 10 rows
+    # stats = pstats.Stats(prof).strip_dirs().sort_stats("cumtime")
+    # stats.print_stats(10) # top 10 rows
 
     # plt.figure()
     # plt.imshow(dset[0], cmap='gray')
@@ -273,3 +345,7 @@ if __name__ == "__main__":
     # plt.imshow(dset[3], cmap='gray')
     # plt.colorbar()
     # plt.show()
+
+    dset = RandomDataset(phases_dim=6, intens_dim=96, length=10000)
+    dset.export()
+    # plt.plot
