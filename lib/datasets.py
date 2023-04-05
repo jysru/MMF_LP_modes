@@ -126,6 +126,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 print(f"Computed couple {i+1}/{self.length}")
 
     def multiproc_compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, n_procs: int = default_nprocs - 1, max_loops_per_proc: int = 100):
+        """Memory intensive, needs to be reworked... Use at your own risk!"""
         self._phase_dims = phases_dim
         self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
