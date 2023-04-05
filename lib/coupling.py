@@ -19,7 +19,7 @@ class GrinFiberCoupler(GrinSpeckle):
         self.decompose(self.N_modes)
         self.recompose()
 
-    def decompose(self, N_modes: int = 10):
+    def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):
         N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
         modes_coeffs = np.zeros(shape=(N_modes), dtype=np.complex64)
         orient_coeffs = np.zeros(shape=(N_modes))
@@ -43,7 +43,7 @@ class GrinFiberCoupler(GrinSpeckle):
                 modes_coeffs[i] = np.sqrt(Cp1 + Cp2) * np.exp(1j * phi)
                 orient_coeffs[i] = Cor
 
-        self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
+        self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs) if normalize_coeffs else modes_coeffs
         self.orient_coeffs = orient_coeffs
 
     def propagate(self, matrix: np.ndarray = None, complex: bool = True, full: bool = False):
