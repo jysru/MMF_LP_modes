@@ -59,7 +59,7 @@ class GrinSpeckle():
         self.orient_coeffs = np.random.rand(self.N_modes)
         self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
 
-    def decompose(self, N_modes: int = 10):
+    def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):
         N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
         modes_coeffs = np.zeros(shape=(N_modes), dtype=np.complex64)
         orient_coeffs = np.zeros(shape=(N_modes))
@@ -83,7 +83,7 @@ class GrinSpeckle():
                 modes_coeffs[i] = np.sqrt(Cp1 + Cp2) * np.exp(1j * phi)
                 orient_coeffs[i] = Cor
 
-        modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
+        modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs) if normalize_coeffs else modes_coeffs
         return modes_coeffs, orient_coeffs
 
     @staticmethod
