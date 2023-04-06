@@ -166,6 +166,7 @@ class SimulatedGrinSpeckleOutputDataset:
         self._phase_dims = None
         self._phase_maps = None
         self._coupling_matrix = self._fiber.modes_coupling_matrix(complex=complex)
+        self._normalized_energy_on_macropixels = None
 
     def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
         self._phase_dims = phases_dim
@@ -181,7 +182,7 @@ class SimulatedGrinSpeckleOutputDataset:
         dm.apply_amplitude_map(beam.amplitude)
 
         for i in range(self.length):
-            phase_map = 2*np.pi*np.random.rand(*phases_dim)
+            phase_map = -np.pi + 2*np.pi*np.random.rand(*phases_dim)
             dm.apply_phase_map(phase_map)
             dm.reduce_by(magnification)
             beam.grid.reduce_by(magnification)
@@ -198,6 +199,7 @@ class SimulatedGrinSpeckleOutputDataset:
             beam.grid.magnify_by(magnification)
             if verbose:
                 print(f"Computed couple {i+1}/{self.length}")
+            self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
 
     @property
     def length(self):
@@ -225,6 +227,7 @@ class SimulatedGrinSpeckleOutputDataset:
                     'input_fields': self._input_fields,
                     'coupling_matrix': self._coupling_matrix,
                     'length': self.length, 'N_modes': self._N_modes,
+                    'macropixels_energy': self._normalized_energy_on_macropixels,
                 }
             )
         
