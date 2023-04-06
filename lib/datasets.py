@@ -171,6 +171,7 @@ class SimulatedGrinSpeckleOutputDataset:
         self._phase_dims = phases_dim
         self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+        self._input_fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
 
         dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
         dm_grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
@@ -189,6 +190,7 @@ class SimulatedGrinSpeckleOutputDataset:
             coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
             propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
 
+            self._input_fields[:,:,i] = dm._field_matrix
             self._phase_maps[:,:,i] = phase_map
             self._fields[:,:,i] = propagated_field
 
@@ -196,90 +198,6 @@ class SimulatedGrinSpeckleOutputDataset:
             beam.grid.magnify_by(magnification)
             if verbose:
                 print(f"Computed couple {i+1}/{self.length}")
-
-    def multiproc_compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, n_procs: int = default_nprocs - 1, max_loops_per_proc: int = 100):
-        """Memory intensive, needs to be reworked... Use at your own risk!"""
-        self._phase_dims = phases_dim
-        self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
-        self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
-
-        dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
-        dm_grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
-        beam = GaussianBeam(dm_grid)
-        beam.compute(width=beam_width)
-        beam.normalize_by_energy()
-        dm.apply_amplitude_map(beam.amplitude)
-
-        self._multiprocess_compute(phases_dim, dm, beam, magnification, n_procs, max_loops_per_proc)
-
-    def _multiprocess_compute(self, phases_dim: tuple[int, int], dm: MockDeformableMirror, beam: GaussianBeam, magnification: int, n_procs: int, max_loops_per_proc: int = 100):
-        if n_procs > default_nprocs:
-            print(f"Coerced number of workers to {default_nprocs}")
-            n_procs = default_nprocs
-
-        divider = self.length // n_procs
-        remainder = self.length % n_procs
-
-        loops_per_proc = []
-        counts = 0
-        if divider > max_loops_per_proc:
-            n_outer_loops = np.ceil(divider / max_loops_per_proc).astype(int)
-            for loop in range(n_outer_loops):
-                if loop < (n_outer_loops - 1):
-                    loops = max_loops_per_proc * np.ones(shape=(n_procs,), dtype=int)
-                    counts += np.sum(loops)
-                else:
-                    remaining = self.length - counts
-                    remaining_divider = remaining // n_procs
-                    remaining_remainder = remaining % n_procs
-                    loops = remaining_divider * np.ones(shape=(n_procs,), dtype=int)
-                    loops[-1] = loops[-1] + remaining_remainder
-                loops_per_proc.append(loops)
-        else:
-            loops = divider * np.ones(shape=(n_procs,), dtype=int)
-            loops[-1] = loops[-1] + remainder
-            loops_per_proc.append(loops)
-
-        for loop in range(len(loops_per_proc)):
-            async_results = []
-            with multiprocessing.Pool(processes=n_procs) as pool:
-                for proc in range(n_procs):
-                    async_results.append(pool.apply_async(self._compute_task, args=(phases_dim, dm, beam, magnification, loops_per_proc[loop][proc])))
-                pool.close()
-                pool.join()
-
-            for i, result in enumerate(async_results):
-                phase_maps, fields = result.get()
-                if (loop == 0) and (i == 0):
-                    self._phase_maps = phase_maps
-                    self._fields = fields
-                else:
-                    self._phase_maps = np.concatenate((self._phase_maps, phase_maps), axis=2)
-                    self._fields = np.concatenate((self._fields, fields), axis=2)
-
-            print(f"Computed multiprocessing loop {loop+1}/{n_outer_loops} using {n_procs} workers")
-    
-    def _compute_task(self, phases_dim: tuple[int, int], dm: MockDeformableMirror, beam: GaussianBeam, magnification: int, loops_per_proc: int):
-        _phase_maps = np.zeros(shape=(phases_dim + (loops_per_proc,)))
-        _fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (loops_per_proc,)), dtype=np.complex128)
-
-        for i in range(loops_per_proc):
-            phase_map = 2*np.pi*np.random.rand(*phases_dim)
-            dm.apply_phase_map(phase_map)
-            dm.reduce_by(magnification)
-            beam.grid.reduce_by(magnification)
-            beam.field = dm._field_matrix
-
-            coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
-            propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
-
-            _phase_maps[:,:,i] = phase_map
-            _fields[:,:,i] = propagated_field
-
-            dm.magnify_by(magnification)
-            beam.grid.magnify_by(magnification)
-
-        return _phase_maps, _fields
 
     @property
     def length(self):
@@ -304,6 +222,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 file_name = savename,
                 mdict = {
                     'phase_maps': self._phase_maps, 'intens': self.intensities,
+                    'input_fields': self._input_fields,
                     'coupling_matrix': self._coupling_matrix,
                     'length': self.length, 'N_modes': self._N_modes,
                 }
