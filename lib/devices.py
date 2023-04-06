@@ -168,14 +168,21 @@ class MockDeformableMirror(Grid):
 
     def __init__(self, pixel_size: float = 1e-6, pixel_numbers: tuple[int, int] = (128, 128), offsets: tuple[float, float] = (0.0, 0.0)) -> None:
         super().__init__(pixel_size, pixel_numbers, offsets)
-        self._field_matrix = None
         self._field_matrix = self._init_field_matrix()
         self._phase_map = None
+        self._partition_size = None
+        self._macropixel_size = None
+        self._partitions_idxs = None
+        self._masked_macropixels_counts = None
+        self._energy_integrated_on_macropixels = None
+        self._idxs_to_keep = None
 
     def _init_field_matrix(self) -> np.ndarray:
         moduli = np.ones(shape=tuple(self.pixel_numbers))
         phases = np.zeros(shape=tuple(self.pixel_numbers))
-        return moduli * np.exp(1j * phases)
+        field = moduli * np.exp(1j * phases)
+        field = self.apply_mask(field)
+        return field
 
     def apply_mask(self, matrix: np.ndarray, mask_value: float = 0):
         mask = np.zeros(shape=self.pixel_numbers, dtype=bool)
@@ -185,8 +192,10 @@ class MockDeformableMirror(Grid):
 
     def apply_phase_map(self, phase_map):
         if phase_map.shape != tuple(self.pixel_numbers):
+            recompute_idxs = True if (phase_map.shape != self._partition_size) else False
+            self._partition_size = phase_map.shape
             self._phase_map = phase_map
-            phase_map = self._partition_to_matrix(phase_map)
+            phase_map = self._partition_to_matrix(phase_map, recompute_idxs)
         self._field_matrix = np.abs(self._field_matrix) * np.exp(1j * phase_map)
         self._field_matrix = self.apply_mask(self._field_matrix)
 
@@ -201,14 +210,52 @@ class MockDeformableMirror(Grid):
             complex_map = self._partition_to_matrix(complex_map)
         self._field_matrix = self.apply_mask(complex_map)
 
-    def _partition_to_matrix(self, partition: np.ndarray):
-        repeater_axis0 = int(np.ceil(deformable_mirror_diameter / self.pixel_size / partition.shape[0]))
-        repeater_axis1 = int(np.ceil(deformable_mirror_diameter / self.pixel_size / partition.shape[1]))
-        matrix = np.repeat(partition, repeater_axis0, axis=0)
-        matrix = np.repeat(matrix, repeater_axis1, axis=1)
+    def _partition_to_matrix(self, partition: np.ndarray, recompute_partitions_idxs: bool = False):
+        if recompute_partitions_idxs:
+            self._compute_partitions_idxs()
+            self._count_partitions_pixels()
+            self._macropixels_integrated_energies()
+        matrix = np.repeat(partition, self._macropixel_size, axis=0)
+        matrix = np.repeat(matrix, self._macropixel_size, axis=1)
         pad_amount = int((self.pixel_numbers[0] - matrix.shape[0]) // 2)
         return np.pad(matrix, pad_width=pad_amount)
+    
+    def _compute_partitions_idxs(self):
+        self._macropixel_size = int(np.ceil(deformable_mirror_diameter / self.pixel_size / self._partition_size[0]))
+        offset = int((self.pixel_numbers[0] - self._partition_size[0] * self._macropixel_size) // 2)
 
+        # Partitions idxs dimensions: partition size 0, partition size 1, macropixel size, mpx rows idxs, cols idxs
+        self._partitions_idxs = np.empty(shape=(self._partition_size[0], self._partition_size[1], self._macropixel_size**2))
+        self._partitions_idxs[:] = np.nan
+
+        for mpx_row in range(self._partition_size[0]):
+            rows = np.arange(0, self._macropixel_size) + mpx_row * self._macropixel_size + offset
+            for mpx_col in range(self._partition_size[1]):
+                cols = np.arange(0, self._macropixel_size) + mpx_col * self._macropixel_size + offset
+                mpx_lin_idxs = np.ravel_multi_index(np.meshgrid(rows, cols), dims=tuple(self.pixel_numbers))
+                self._partitions_idxs[mpx_row, mpx_col, :] = mpx_lin_idxs.flatten().astype(int)
+        self._partitions_idxs = self._partitions_idxs.astype(int)
+
+    def _count_partitions_pixels(self):
+        mask = np.zeros(shape=self.pixel_numbers, dtype=bool)
+        mask[self.R <= deformable_mirror_diameter/2] = True
+        idxs_to_keep = np.argwhere(mask) # Row and col idxs
+        idxs_to_keep = np.ravel_multi_index([idxs_to_keep[:,0], idxs_to_keep[:,1]], dims=tuple(self.pixel_numbers)) # Linear idxs
+        
+        self._masked_macropixels_counts = np.zeros(shape=self._partition_size)
+        for mpx_row in range(self._partition_size[0]):
+            for mpx_col in range(self._partition_size[1]):
+                count = np.intersect1d(self._partitions_idxs[mpx_row, mpx_col, :], idxs_to_keep).size
+                self._masked_macropixels_counts[mpx_row, mpx_col] = count
+        self._idxs_to_keep = idxs_to_keep
+
+    def _macropixels_integrated_energies(self):
+        self._energy_on_macropixels = np.zeros(shape=self._partition_size)
+        for mpx_row in range(self._partition_size[0]):
+            for mpx_col in range(self._partition_size[1]):
+                mpx_idxs = np.intersect1d(self._partitions_idxs[mpx_row, mpx_col, :], self._idxs_to_keep)
+                self._energy_on_macropixels[mpx_row, mpx_col] = np.sum(np.square(np.abs(self._field_matrix.flatten()[mpx_idxs])))
+        
     @property
     def field(self):
         return self._field_matrix
@@ -217,6 +264,18 @@ class MockDeformableMirror(Grid):
     def amplitude(self):
         return np.abs(self._field_matrix)
     
+    @property
+    def energy_integrated_on_macropixels(self):
+        return self._energy_on_macropixels
+    
+    @property
+    def masked_macropixels_counts(self):
+        return self._masked_macropixels_counts
+    
+    @property
+    def normalized_energies_on_macropixels(self):
+        return self.energy_integrated_on_macropixels / np.max(self.energy_integrated_on_macropixels)
+
     @property
     def intensity(self):
         return np.square(self.amplitude)
@@ -256,28 +315,16 @@ class MockDeformableMirror(Grid):
 
 
 if __name__ == "__main__":
-    phase_map = 2*np.pi*np.random.rand(6,6)
-
-    # dm = DeformableMirror(pixel_numbers=(128,128))
-    # dm = DeformableMirror()
-    # dm.apply_phase_map(phase_map)
-    # grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
-    # beam = beams.BesselBeam(grid)
-    # beam.compute(amplitude=1, width=1500e-6, centers=[0,0], order=1)
-    # dm.apply_amplitude_map(beam.amplitude)
-    
-    # dm.plot()
-    # plt.show()
-
-
+    phase_map = 2*np.pi*np.random.rand(3,3)
 
     dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
-    dm.apply_phase_map(phase_map)
-
     grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
     beam = beams.GaussianBeam(grid)
-    beam.compute(amplitude=1, width=3500e-6, centers=[0,0])
+    beam.compute(amplitude=1, width=5100e-6, centers=[0,0])
+    beam.normalize_by_energy()
     dm.apply_amplitude_map(beam.amplitude)
+    dm.apply_phase_map(phase_map)
+    print(dm.normalized_energies_on_macropixels)
     
     dm.plot()
     plt.show()
