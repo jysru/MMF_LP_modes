@@ -18,7 +18,7 @@ class GrinSpeckle():
         self.orient_coeffs = None
         self.field = None
 
-    def compose(self, coeffs: tuple[np.array, np.array] = None):
+    def compose(self, coeffs: tuple[np.array, np.array] = None, oriented: bool = False):
         fields1 = np.zeros(shape=(self.grid.pixel_numbers[0], self.grid.pixel_numbers[1], self.N_modes))
         fields2 = np.zeros_like(fields1)
 
@@ -26,7 +26,7 @@ class GrinSpeckle():
             self.modes_coeffs = coeffs[0]
             self.orient_coeffs = coeffs[1]
         else:
-            self._modes_random_coeffs()
+            self._modes_random_coeffs(oriented=oriented)
 
         for i in range(self.N_modes):
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
@@ -46,7 +46,7 @@ class GrinSpeckle():
                 field += tmp * Cp
         self.field = field
 
-    def _modes_random_coeffs(self):
+    def _modes_random_coeffs(self, oriented: bool = False):
         # Generate vector that sums up to one (intensity coefficients)
         Ip = np.random.rand(self.N_modes)
         Ip = Ip / np.sum(Ip)
@@ -56,7 +56,7 @@ class GrinSpeckle():
     
         # Get the complex coefficients
         modes_coeffs = np.sqrt(Ip) * np.exp(1j * Phip)
-        self.orient_coeffs = np.random.rand(self.N_modes)
+        self.orient_coeffs = np.zeros(self.N_modes) if oriented else np.random.rand(self.N_modes)
         self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
 
     def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):

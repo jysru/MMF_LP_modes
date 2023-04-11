@@ -124,7 +124,7 @@ class GrinLPDataset:
 class GrinLPSpeckleDataset:
     """Random combination of LP modes from GRIN fiber"""
 
-    def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0, coupling_matrix=None) -> None:
+    def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0, coupling_matrix=None, oriented: bool = False) -> None:
         self._N_modes = fiber._N_modes if N_modes > fiber._N_modes else N_modes
         self._length = length
         self._grid = grid
@@ -133,15 +133,16 @@ class GrinLPSpeckleDataset:
         self._fields = None
         self._modes_coeffs = None
         self._coupling_matrix = coupling_matrix if coupling_matrix is not None else None
+        self._oriented = oriented
         self.compute()
 
-    def compute(self):
+    def compute(self, orient: bool = False):
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
         self._modes_coeffs = np.zeros(shape=(self._N_modes, self.length), dtype=np.complex128)
         for i in range(self.length):
             speckle = GrinSpeckle(self._fiber, self._grid, N_modes=self._N_modes, noise_std = self._noise_std)
-            # speckle.compose(orient=False)
-            speckle.compose(orient=False)
+            speckle._modes_random_coeffs()
+            speckle.compose(oriented=self._oriented)
             self._modes_coeffs[:, i] = speckle.modes_coeffs
 
             if self._coupling_matrix is not None:
