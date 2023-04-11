@@ -1,30 +1,53 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from grid import Grid
-from beams import GaussianBeam
+from lib.grid import Grid
+from lib.beams import GaussianBeam
 
 
-def fourier_transform(field, pad: float = 2):
+def crop_img(img, newsize):
+    diff_row = img.shape[0] - newsize[0]
+    diff_col = img.shape[1] - newsize[1]
+    crop_row, crop_col = diff_row // 2, diff_col // 2
+    return img[crop_row:-crop_row, crop_col:-crop_col]
+
+
+def pad_img(img, pad: float = 1):
+    return np.pad(img, pad_width=[int(img.shape[0] * pad/2), int(img.shape[1] * pad/2)], mode='constant')
+
+
+def fourier_transform(field, pad: float = None):
     if pad is not None:
         init_shape = field.shape
-        field = np.pad(field, pad_width=[int(init_shape[0] * pad/2), int(init_shape[1] * pad/2)], mode='constant')
+        field = pad_img(field)
     
     ft = np.fft.fftshift(np.fft.fft2(field))
     ft = ft / np.sqrt(ft.size)
+
+    if pad is not None:
+        ft = crop_img(ft, init_shape)
+
     return ft
 
 
-def fresnel_transform(field, grid: Grid, delta_z: float, wavelength: float = 1064e-9):
-    dNxy = 1/grid.extents # Size of a sample in the Fourier plane [1/m]
-    limNxy = (grid.pixel_numbers / 2) * dNxy ; # Interval boundaries [1/m]
+def fresnel_transform(field, grid: Grid, delta_z: float, wavelength: float = 1064e-9, pad=1):
+    if pad is not None:
+        init_shape = field.shape
+        field = pad_img(field)
+
+    dNxy = 1/((pad+1) * grid.extents) # Size of a sample in the Fourier plane [1/m]
+    limNxy = (field.shape[0] / 2) * dNxy ; # Interval boundaries [1/m]
     kx = 2 * np.pi * np.arange(start= -limNxy[0], stop=limNxy[0], step=dNxy[0]) # Angular frequencies vector (x-axis) [rad/m]
     ky = 2 * np.pi * np.arange(start= -limNxy[1], stop=limNxy[1], step=dNxy[1]) # Angular frequencies vector (y-axis) [rad/m]
     KX, KY = np.meshgrid(kx, ky)
+    prop = np.exp(1j * delta_z * np.sqrt(np.abs(4 * np.square(np.pi / wavelength) - np.square(KX) - np.square(KY))))
 
     ft = np.fft.fftshift(np.fft.fft2(field))
-    ft = ft * np.exp(1j * delta_z * np.sqrt(4 * np.square(np.pi / wavelength) - np.square(KX) - np.square(KY) ))
+    ft = ft * prop
     ift = np.fft.ifft2(np.fft.ifftshift(ft))
+
+    if pad is not None:
+        ift = crop_img(ift, init_shape)
     return ift
 
 
