@@ -177,7 +177,7 @@ class GrinLPSpeckleDataset:
         val = np.square(np.abs(self._fields))
         return np.abs(val + self._noise_std * np.random.randn(*val.shape))
     
-    def export(self, path: str = '.', name: str = None):
+    def export(self, path: str = '.', name: str = None, return_fields: bool = False):
         if name is None:
             default_name = f"synth_dset_grinspeckle_Nmodes={self._N_modes}_len={self.length}"
             name = default_name
@@ -185,27 +185,21 @@ class GrinLPSpeckleDataset:
 
         matrix = [] if self._coupling_matrix is None else self._coupling_matrix
 
+        mdict = {
+            'phase_maps': self._modes_coeffs, 'intens': self.intensities,
+            'length': self.length, 'N_modes': self._N_modes,
+            'modes_orients': self._modes_orients,
+            'coupling_matrix': matrix,
+        }
+
         if self._transf is not None:
-            savemat(
-                file_name = savename,
-                mdict = {
-                    'phase_maps': self._modes_coeffs, 'intens': self.intensities,
-                    'length': self.length, 'N_modes': self._N_modes,
-                    'modes_orients': self._modes_orients,
-                    'coupling_matrix': matrix,
-                    'transf': np.square(np.abs(self._transf)),
-                }
-            )
-        else:
-            savemat(
-                file_name = savename,
-                mdict = {
-                    'phase_maps': self._modes_coeffs, 'intens': self.intensities,
-                    'length': self.length, 'N_modes': self._N_modes,
-                    'modes_orients': self._modes_orients,
-                    'coupling_matrix': matrix,
-                }
-            )   
+            mdict['transf'] = np.square(np.abs(self._transf))
+        if return_fields:
+            mdict['fields'] = self._fields
+
+        savemat(file_name = savename, mdict = mdict)
+        print(f"Saved dataset: {savename}")
+
     
     def __getitem__(self, idx):
         return self.intensities[:, :, idx]
