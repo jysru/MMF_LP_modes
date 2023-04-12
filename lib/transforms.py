@@ -6,34 +6,42 @@ from lib.beams import GaussianBeam
 
 
 def crop_img(img, newsize):
+    """ Crop image to new size, from the center."""
     diff_row = img.shape[0] - newsize[0]
     diff_col = img.shape[1] - newsize[1]
     crop_row, crop_col = diff_row // 2, diff_col // 2
     return img[crop_row:-crop_row, crop_col:-crop_col]
 
 
+def _pad_checker(pad: float):
+    if pad < 1:
+        print('Coerced pad value to 1!')
+        return 1
+    else:
+        return pad
+
+
 def pad_img(img, pad: float = 1):
-    return np.pad(img, pad_width=[int(img.shape[0] * pad/2), int(img.shape[1] * pad/2)], mode='constant')
+    """ Pad zeroes on each axis.
+        Default pad value is 1, which means that the padded image is twice the original size on each axis.
+    """
+    return np.pad(img, pad_width=[int(img.shape[0] * pad / 2), int(img.shape[1] * pad / 2)], mode='constant')
 
 
 def fourier_transform(field, pad: float = None):
     if pad is not None:
         init_shape = field.shape
-        field = pad_img(field)
-    
+        field = pad_img(field, pad)
+        
     ft = np.fft.fftshift(np.fft.fft2(field))
     ft = ft / np.sqrt(ft.size)
-
-    if pad is not None:
-        ft = crop_img(ft, init_shape)
-
-    return ft
+    return crop_img(ft, init_shape) if pad is not None else ft
 
 
-def fresnel_transform(field, grid: Grid, delta_z: float, wavelength: float = 1064e-9, pad=1):
+def fresnel_transform(field, grid: Grid, delta_z: float, wavelength: float = 1064e-9, pad: float = None):
     if pad is not None:
         init_shape = field.shape
-        field = pad_img(field)
+        field = pad_img(field, pad)
 
     dNxy = 1/((pad+1) * grid.extents) # Size of a sample in the Fourier plane [1/m]
     limNxy = (field.shape[0] / 2) * dNxy ; # Interval boundaries [1/m]
@@ -45,10 +53,7 @@ def fresnel_transform(field, grid: Grid, delta_z: float, wavelength: float = 106
     ft = np.fft.fftshift(np.fft.fft2(field))
     ft = ft * prop
     ift = np.fft.ifft2(np.fft.ifftshift(ft))
-
-    if pad is not None:
-        ift = crop_img(ift, init_shape)
-    return ift
+    return crop_img(ift, init_shape) if pad is not None else ift
 
 
 def unitary_fourier_transform(field, pad: float = None):
