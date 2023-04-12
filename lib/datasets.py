@@ -120,7 +120,7 @@ class GrinLPDataset:
     
     def __getitem__(self, idx):
         return self.intensities[:, :, idx]
-
+    
 
 class GrinLPSpeckleDataset:
     """Random combination of LP modes from GRIN fiber"""
@@ -132,18 +132,19 @@ class GrinLPSpeckleDataset:
         self._fiber = fiber
         self._noise_std = noise_std
         self._fields = None
+        self._transf = None
         self._modes_coeffs = None
         self._coupling_matrix = coupling_matrix if coupling_matrix is not None else None
-        self._oriented = oriented
+        self._modes_orients = np.random.rand(self._N_modes) 
         self.compute()
 
-    def compute(self, orient: bool = False):
+    def compute(self):
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
         self._modes_coeffs = np.zeros(shape=(self._N_modes, self.length), dtype=np.complex128)
         for i in range(self.length):
             speckle = GrinSpeckle(self._fiber, self._grid, N_modes=self._N_modes, noise_std = self._noise_std)
             speckle._modes_random_coeffs()
-            speckle.compose(oriented=self._oriented)
+            speckle.compose(coeffs=(speckle.modes_coeffs, self._modes_orients))
             self._modes_coeffs[:, i] = speckle.modes_coeffs
 
             if self._coupling_matrix is not None:
@@ -168,76 +169,27 @@ class GrinLPSpeckleDataset:
 
         matrix = [] if self._coupling_matrix is None else self._coupling_matrix
 
-        savemat(
+        if self._transf is not None:
+            savemat(
                 file_name = savename,
                 mdict = {
                     'phase_maps': self._modes_coeffs, 'intens': self.intensities,
                     'length': self.length, 'N_modes': self._N_modes,
-                    'coupling_matrix': matrix,
-                }
-            )
-    
-    def __getitem__(self, idx):
-        return self.intensities[:, :, idx]
-    
-
-class GrinLPSpeckleDataset:
-    """Random combination of LP modes from GRIN fiber"""
-
-    def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0, coupling_matrix=None, oriented: bool = False) -> None:
-        self._N_modes = fiber._N_modes if N_modes > fiber._N_modes else N_modes
-        self._length = length
-        self._grid = grid
-        self._fiber = fiber
-        self._noise_std = noise_std
-        self._fields = None
-        self._modes_coeffs = None
-        self._coupling_matrix = coupling_matrix if coupling_matrix is not None else None
-        self._oriented = oriented
-        self.compute()
-
-    def compute(self, orient: bool = False):
-        self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
-        self._transf = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
-        self._modes_coeffs = np.zeros(shape=(self._N_modes, self.length), dtype=np.complex128)
-        for i in range(self.length):
-            speckle = GrinSpeckle(self._fiber, self._grid, N_modes=self._N_modes, noise_std = self._noise_std)
-            speckle._modes_random_coeffs()
-            speckle.compose(oriented=self._oriented)
-            self._modes_coeffs[:, i] = speckle.modes_coeffs
-
-            if self._coupling_matrix is not None:
-                modes_coeffs = np.dot(self._coupling_matrix[:speckle.modes_coeffs.shape[0], :speckle.modes_coeffs.shape[0]], speckle.modes_coeffs)
-                speckle.compose(coeffs=(modes_coeffs, speckle.orient_coeffs))
-            self._fields[:, :, i] = speckle.field
-            self._transf[:, :, i] = fourier_transform(speckle.field, pad=2)
-
-    @property
-    def length(self):
-        return self._length
-
-    @property
-    def intensities(self):
-        val = np.square(np.abs(self._fields))
-        return np.abs(val + self._noise_std * np.random.randn(*val.shape))
-    
-    def export(self, path: str = '.', name: str = None):
-        if name is None:
-            default_name = f"synth_dset_grinspeckle_Nmodes={self._N_modes}_len={self.length}"
-            name = default_name
-        savename = os.path.join(path, f"{name}.mat")
-
-        matrix = [] if self._coupling_matrix is None else self._coupling_matrix
-
-        savemat(
-                file_name = savename,
-                mdict = {
-                    'phase_maps': self._modes_coeffs, 'intens': self.intensities,
-                    'length': self.length, 'N_modes': self._N_modes,
+                    'modes_orients': self._modes_orients,
                     'coupling_matrix': matrix,
                     'transf': np.square(np.abs(self._transf)),
                 }
             )
+        else:
+            savemat(
+                file_name = savename,
+                mdict = {
+                    'phase_maps': self._modes_coeffs, 'intens': self.intensities,
+                    'length': self.length, 'N_modes': self._N_modes,
+                    'modes_orients': self._modes_orients,
+                    'coupling_matrix': matrix,
+                }
+            )   
     
     def __getitem__(self, idx):
         return self.intensities[:, :, idx]
