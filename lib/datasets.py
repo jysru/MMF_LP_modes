@@ -152,6 +152,22 @@ class GrinLPSpeckleDataset:
                 speckle.compose(coeffs=(modes_coeffs, speckle.orient_coeffs))
             self._fields[:, :, i] = speckle.field
 
+    def compute_fresnel_transforms(self, delta_z: float, pad: float = 2):
+        if self._fields is not None:
+            self._transf = np.zeros_like(self._fields)
+            for i in range(self.length):
+                self._transf[:, :, i] = fresnel_transform(self._fields[:, :, i], self._grid, delta_z=delta_z, pad=pad)
+        else:
+            print("Run compute method first!")
+
+    def compute_fourier_transforms(self, pad: float = 2):
+        if self._fields is not None:
+            self._transf = np.zeros_like(self._fields)
+            for i in range(self.length):
+                self._transf[:, :, i] = fourier_transform(self._fields[:, :, i], pad=pad)
+        else:
+            print("Run compute method first!")
+
     @property
     def length(self):
         return self._length
