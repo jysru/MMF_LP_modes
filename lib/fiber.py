@@ -71,6 +71,12 @@ class GrinFiber:
     @property
     def _N_modes(self):
         return np.floor(np.square(self._V) / 16).astype(int)
+    
+    @property
+    def _N_modes_degen(self):
+        centros = np.sum(self._neff_hnm[:, 2] == 0)
+        non_centros = np.sum(self._neff_hnm[:, 2] > 0)
+        return centros + 2*non_centros
 
     @property
     def _k0(self):
@@ -123,7 +129,9 @@ class GrinFiber:
 if __name__ == "__main__":
     fiber = GrinFiber()
     print(fiber._N_modes)
-    matrix = fiber.modes_coupling_matrix(complex=True)
-    GrinFiber.plot_coupling_matrix(matrix, complex=True)
-    plt.show()
+    print(fiber._N_modes_degen)
+    # matrix = fiber.modes_coupling_matrix(complex=True)
+
+    # GrinFiber.plot_coupling_matrix(matrix, complex=True)
+    # plt.show()
     
