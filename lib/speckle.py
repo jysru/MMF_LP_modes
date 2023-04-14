@@ -249,6 +249,7 @@ class DegenGrinSpeckle(GrinSpeckle):
             else:
                 fields[:, :, k] = mode._fields[:, :, 0]
                 k += 1
+            
 
         field = 0
         for i in range(self.N_modes):
@@ -270,7 +271,7 @@ class DegenGrinSpeckle(GrinSpeckle):
 
     def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):
         N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
-        modes_coeffs = np.zeros(shape=(self.fiber._N_modes_degen), dtype=np.complex64)
+        modes_coeffs = np.zeros(shape=(self.N_modes), dtype=np.complex64)
 
         k = 0
         for i in range(N_modes):
@@ -302,6 +303,48 @@ class DegenGrinSpeckle(GrinSpeckle):
             f"\n\t End\n\n"
         )
 
+    def plot_coefficients(self):
+        x = np.arange(self.N_modes)
+        nm = self.fiber._neff_hnm[:self.N_modes, 2:].astype(int)
+        nm_strings = []
+        k = 0
+        for i in range(self.N_modes):
+            if nm[i,0] == 0:
+                try:
+                    nm_strings.append(f"{nm[k,0]:d},{nm[k,1]:d}")
+                except:
+                    pass
+                k += 1
+            else:
+                try:
+                    nm_strings.append(f"{nm[k,0]:d},{nm[k,1]:d}a")
+                except:
+                    pass
+                try:
+                    nm_strings.append(f"{nm[k,0]:d},{nm[k,1]:d}b")
+                except:
+                    pass
+                k += 2
+            if k >= self.N_modes:
+                break
+        print(nm_strings)
+
+        fig = plt.figure(figsize=(15,7))
+        ax = plt.gca()
+        pl = plt.bar(x, self.coeffs_intensity * 100)
+        ax_t = ax.secondary_xaxis('top')
+        ax_t.tick_params(axis='x', direction='in')
+        ax_t.set_xlabel("LP mode linear index")
+
+        ax.set_xlabel(r"LP$_{n,m}$ mode")
+        ax.set_xticks(x, nm_strings, rotation='vertical')
+        ax.set_ylabel("Energy percentage [%]")
+        ax.set_title(
+            f"Energy percentage on LP modes "
+            f"({self.N_modes} modes, total energy: {self.total_coeffs_intensity * 100:2.1f}%)"
+        )
+        return (fig, ax, pl)
+    
 
 if __name__ == "__main__":
     grid = Grid(pixel_size=0.5e-6)
@@ -309,7 +352,7 @@ if __name__ == "__main__":
     speckle = DegenGrinSpeckle(fiber, grid, N_modes=fiber._N_modes_degen)
     speckle.compose()
     coeffs = speckle.decompose(N_modes = fiber._N_modes_degen)
-    # speckle._sanity_checker(normalize_coeffs=True)
+    speckle._sanity_checker(normalize_coeffs=True)
     speckle.plot(complex=True)
     # speckle.plot_coefficients()
     # print(speckle)
