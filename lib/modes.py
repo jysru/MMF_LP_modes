@@ -33,11 +33,12 @@ class GrinLPMode():
         epsilon_mn = np.pi * np.square(fiber.radius) * fac_m_plus_n * (1 + delta0m) / (2 * fiber._V * fac_n)
         ro = np.array(grid.R / fiber.radius * np.sqrt(fiber._V)).astype(float)
 
-        Lmn = 0
+        Lmn = np.zeros(shape=(grid.pixel_numbers[0], grid.pixel_numbers[1], self._fn + 1))
         for s in range(self._fn + 1):
             num = fac_m_plus_n * np.power(-1, s) * np.power(ro, 2 * s)
             denom = np.math.factorial(self._fm + s) * np.math.factorial(self._fn - s) * np.math.factorial(s)
-            Lmn += num / denom
+            Lmn[:, :, s] = num / denom
+        Lmn = np.sum(Lmn, axis=2)
 
         fac1 = 1 / np.sqrt(epsilon_mn)
         fac2 = np.power(ro, self._fm)
@@ -90,7 +91,7 @@ class GrinLPMode():
 if __name__ == "__main__":
     grid = Grid(pixel_size=0.5e-6)
     fiber = GrinFiber()
-    mode = GrinLPMode(2, 3)
+    mode = GrinLPMode(1,1)
     mode.compute(fiber, grid)
     mode.plot()
     plt.show()
