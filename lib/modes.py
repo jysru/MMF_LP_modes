@@ -64,6 +64,14 @@ class GrinLPMode():
     @property
     def energies(self):
         return np.sum(self.intensities, axis=(0,1))
+
+    @property
+    def is_centrosymmetric(self):
+        return True if self.n == 0 else False
+    
+    @property
+    def is_degenerated(self):
+        return True if self.n >= 0 else False
     
     def plot(self):
         r = self._radius * 1e6

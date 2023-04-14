@@ -69,8 +69,8 @@ class GrinSpeckle():
             mode = GrinLPMode(n, m)
             mode.compute(self.fiber, self.grid)
             mode0, mode90 = mode._fields[:,:,0], mode._fields[:,:,1]
-
-            if n == 0: # Centro-symmetric mode
+            
+            if mode.is_centrosymmetric:
                 modes_coeffs[i] = GrinSpeckle.complex_overlap_integral(self.field, mode0)
             else: # Non centro-symmetric mode
                 # Decompose on degenerates
@@ -278,9 +278,7 @@ class DegenGrinSpeckle(GrinSpeckle):
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
             mode = GrinLPMode(n, m)
             mode.compute(self.fiber, self.grid)
-
-            is_degenerated = True if n > 0 else False
-            if is_degenerated:
+            if mode.is_degenerated:
                 modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
                 modes_coeffs[k + 1] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 1])
                 k += 2
