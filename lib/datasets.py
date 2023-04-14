@@ -208,7 +208,7 @@ class GrinLPSpeckleDataset:
 class SimulatedGrinSpeckleOutputDataset:
     """Coupling from modal decomposition on GRIN fiber LP modes, then propagation using a random mode coupling matrix"""
 
-    def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0) -> None:
+    def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0, degen: bool = False) -> None:
         self._N_modes = fiber._N_modes if N_modes > fiber._N_modes else N_modes
         self._length = length
         self._grid = grid
@@ -217,8 +217,9 @@ class SimulatedGrinSpeckleOutputDataset:
         self._fields = None
         self._phase_dims = None
         self._phase_maps = None
-        self._coupling_matrix = self._fiber.modes_coupling_matrix(complex=complex)
+        self._coupling_matrix = self._fiber.modes_coupling_matrix(complex=complex, full=True, degen=degen)
         self._normalized_energy_on_macropixels = None
+        self._degenerated = degen
 
     def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
         self._phase_dims = phases_dim
@@ -240,7 +241,10 @@ class SimulatedGrinSpeckleOutputDataset:
             beam.grid.reduce_by(magnification)
             beam.field = dm._field_matrix
 
-            coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
+            if self._degenerated:
+                coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
+            else:
+                coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
             propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
 
             self._input_fields[:,:,i] = dm._field_matrix
