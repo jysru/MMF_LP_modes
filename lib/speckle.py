@@ -71,17 +71,17 @@ class GrinSpeckle():
             mode0, mode90 = mode._fields[:,:,0], mode._fields[:,:,1]
 
             if n == 0: # Centro-symmetric mode
-                Cp = GrinSpeckle.power_overlap_integral(self.field, mode0)
-                phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode0)
-                modes_coeffs[i] = np.sqrt(Cp) * np.exp(1j * phi)
-            else:
-                Cp1 = GrinSpeckle.power_overlap_integral(self.field, mode0)
-                Cp2 = GrinSpeckle.power_overlap_integral(self.field, mode90)
-                Cor = Cp1 / (Cp1 + Cp2)
+                modes_coeffs[i] = GrinSpeckle.complex_overlap_integral(self.field, mode0)
+            else: # Non centro-symmetric mode
+                # Decompose on degenerates
+                Cp1 = GrinSpeckle.complex_overlap_integral(self.field, mode0)
+                Cp2 = GrinSpeckle.complex_overlap_integral(self.field, mode90)
+                # Compute oriented mode from coefficient power ratio
+                Cor = np.square(np.abs(Cp1)) / np.abs(np.square(Cp1) + np.square(Cp2))
                 mode_orient = np.sqrt(Cor) * mode0 +  np.sqrt(1 - Cor) * mode90
-                phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_orient)
-                modes_coeffs[i] = np.sqrt(Cp1 + Cp2) * np.exp(1j * phi)
                 orient_coeffs[i] = Cor
+                # Compute coefficient from oriented mode
+                modes_coeffs[i] = GrinSpeckle.complex_overlap_integral(self.field, mode_orient)
 
         modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs) if normalize_coeffs else modes_coeffs
         return modes_coeffs, orient_coeffs
@@ -93,6 +93,10 @@ class GrinSpeckle():
     @staticmethod
     def phase_from_overlap_integral(field, mode):
         return np.angle(np.sum(field * np.conj(mode)))
+    
+    @staticmethod
+    def complex_overlap_integral(field, mode):
+        return np.sum(field * np.conj(mode)) / (np.sum(np.square(np.abs(field))) * np.sum(np.square(np.abs(mode))))
 
     @staticmethod
     def _normalize_coeffs(coeffs):
@@ -193,7 +197,6 @@ class GrinSpeckle():
 
     def _sanity_checker(self):
         coeffs, orients = self.decompose(N_modes=self.N_modes)
-
         print(
             f"\n\t Speckle sanity checker ({self.N_modes} modes):\n\n"
             f"\t - Sum of intensity coefficients: {self.total_coeffs_intensity}\n"
@@ -219,13 +222,95 @@ class GrinSpeckle():
         )
 
 
+class DegenGrinSpeckle(GrinSpeckle):
+
+    def __init__(self, fiber: GrinFiber, grid: Grid, N_modes: int = 10, noise_std: float = 0) -> None:
+        super().__init__(fiber, grid, N_modes, noise_std)
+        self.N_modes = fiber._N_modes_degen if N_modes > fiber._N_modes_degen else N_modes
+
+    def compose(self, coeffs: np.array = None):
+        fields = np.zeros(shape=(self.grid.pixel_numbers[0], self.grid.pixel_numbers[1], self.N_modes))
+        if coeffs is not None:
+            self.modes_coeffs = coeffs
+        else:
+            self._modes_random_coeffs()
+
+        k = 0
+        for i in range(self.fiber._N_modes):
+            n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
+            mode = GrinLPMode(n, m)
+            mode.compute(self.fiber, self.grid)
+
+            is_degenerated = True if n > 0 else False
+            if is_degenerated:
+                fields[:, :, k] = mode._fields[:, :, 0]
+                fields[:, :, k + 1] = mode._fields[:, :, 1]
+                k += 2
+            else:
+                fields[:, :, k] = mode._fields[:, :, 0]
+                k += 1
+
+        field = 0
+        for i in range(self.N_modes):
+            Cp = self.modes_coeffs[i]
+            field += fields[:, :, i] * Cp
+        self.field = field
+
+    def _modes_random_coeffs(self):
+        # Generate vector that sums up to one (intensity coefficients)
+        Ip = np.random.rand(self.N_modes)
+        Ip = Ip / np.sum(Ip)
+    
+        # Generate random phases
+        Phip = 2 * np.pi* np.random.rand(self.N_modes)
+    
+        # Get the complex coefficients
+        modes_coeffs = np.sqrt(Ip) * np.exp(1j * Phip)
+        self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
+
+    def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):
+        N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
+        modes_coeffs = np.zeros(shape=(self.fiber._N_modes_degen), dtype=np.complex64)
+
+        k = 0
+        for i in range(N_modes):
+            n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
+            mode = GrinLPMode(n, m)
+            mode.compute(self.fiber, self.grid)
+
+            is_degenerated = True if n > 0 else False
+            if is_degenerated:
+                modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
+                modes_coeffs[k + 1] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 1])
+                k += 2
+            else:
+                modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
+                k += 1
+        return GrinSpeckle._normalize_coeffs(modes_coeffs) if normalize_coeffs else modes_coeffs
+    
+    def _sanity_checker(self, normalize_coeffs: bool = False):
+        coeffs = self.decompose(N_modes=self.N_modes)
+        coeffs = GrinSpeckle._normalize_coeffs(coeffs) if normalize_coeffs else coeffs
+        print(
+            f"\n\t Speckle sanity checker ({self.N_modes} modes):\n\n"
+            f"\t - Sum of intensity coefficients: {self.total_coeffs_intensity}\n"
+            f"\t - Sum of decomposition intensity coefficients: {np.sum(np.square(np.abs(coeffs)))}\n"
+            f"\t - Intensity coefficients:\n{self.coeffs_intensity}\n"
+            f"\t - Decomposition intensity coefficients:\n{np.square(np.abs(coeffs))}\n"
+            f"\t - Phases coefficients:\n{self.coeffs_phases}\n"
+            f"\t - Decomposition phases coefficients:\n{np.angle(coeffs)}\n"
+            f"\n\t End\n\n"
+        )
+
+
 if __name__ == "__main__":
     grid = Grid(pixel_size=0.5e-6)
     fiber = GrinFiber()
-    speckle = GrinSpeckle(fiber, grid, N_modes=15)
+    speckle = DegenGrinSpeckle(fiber, grid, N_modes=fiber._N_modes_degen)
     speckle.compose()
-    speckle._sanity_checker()
+    coeffs = speckle.decompose(N_modes = fiber._N_modes_degen)
+    # speckle._sanity_checker(normalize_coeffs=True)
     speckle.plot(complex=True)
-    speckle.plot_coefficients()
-    print(speckle)
+    # speckle.plot_coefficients()
+    # print(speckle)
     plt.show()
