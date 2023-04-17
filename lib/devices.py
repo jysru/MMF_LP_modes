@@ -176,6 +176,7 @@ class MockDeformableMirror(Grid):
         self._masked_macropixels_counts = None
         self._energy_integrated_on_macropixels = None
         self._idxs_to_keep = None
+        self._transfer_matrix_amplitudes = None
 
     def _init_field_matrix(self) -> np.ndarray:
         moduli = np.ones(shape=tuple(self.pixel_numbers))
@@ -256,6 +257,16 @@ class MockDeformableMirror(Grid):
                 mpx_idxs = np.intersect1d(self._partitions_idxs[mpx_row, mpx_col, :], self._idxs_to_keep)
                 self._energy_on_macropixels[mpx_row, mpx_col] = np.sum(np.square(np.abs(self._field_matrix.flatten()[mpx_idxs])))
         
+    def compute_transfer_matrix_amplitudes(self):
+        self._transfer_matrix_amplitudes = np.empty(shape=(*self._partition_size, *self._field_matrix.shape))
+        for mpx_row in range(self._partition_size[0]):
+            for mpx_col in range(self._partition_size[1]):
+                mpx_row_idxs, mpx_col_idxs = np.unravel_index(self._partitions_idxs[mpx_row, mpx_col, :], shape=self._field_matrix.shape)
+                amplitudes = np.zeros(shape=self._field_matrix.shape)
+                amplitudes[mpx_row_idxs, mpx_col_idxs] = np.abs(self._field_matrix[mpx_row_idxs, mpx_col_idxs])
+                self._transfer_matrix_amplitudes[mpx_row, mpx_col, :, :] = amplitudes
+        self._transfer_matrix_amplitudes = np.reshape(self._transfer_matrix_amplitudes, (np.prod(self._partition_size), *self._field_matrix.shape))
+
     @property
     def field(self):
         return self._field_matrix
@@ -325,7 +336,8 @@ if __name__ == "__main__":
     dm.apply_amplitude_map(beam.amplitude)
     dm.apply_phase_map(phase_map)
     print(dm.normalized_energies_on_macropixels)
-    
+
+    dm.compute_transfer_matrix_amplitudes() 
     dm.plot()
     plt.show()
 
