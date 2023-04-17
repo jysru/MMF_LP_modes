@@ -15,6 +15,7 @@ class GrinFiberCoupler(GrinSpeckle):
     def __init__(self, field: np.ndarray, grid: Grid, fiber: GrinFiber = GrinFiber(), N_modes: int = 10, noise_std: float = 0) -> None:
         super().__init__(fiber, grid, N_modes, noise_std)
         self.field = field
+        self.field = self.field / self.energy
         self.coupling_matrix = None
         self.modes_coeffs, self.orient_coeffs = self.decompose(self.N_modes)
         self.recompose()
@@ -30,6 +31,7 @@ class GrinFiberCoupler(GrinSpeckle):
         
     def recompose(self):
         self.compose(coeffs=(self.modes_coeffs, self.orient_coeffs))
+        return self.field
 
     def __str__(self) -> str:
         return (
@@ -45,6 +47,7 @@ class GrinFiberDegenCoupler(DegenGrinSpeckle):
     def __init__(self, field: np.ndarray, grid: Grid, fiber: GrinFiber = GrinFiber(), N_modes: int = 10, noise_std: float = 0) -> None:
         super().__init__(fiber, grid, N_modes, noise_std)
         self.field = field
+        self.field = self.field / self.energy
         self.coupling_matrix = None
         self.modes_coeffs = self.decompose(self.N_modes)
         self.recompose()
