@@ -71,7 +71,7 @@ class GrinLPMode():
     
     @property
     def is_degenerated(self):
-        return True if self.n >= 0 else False
+        return True if self.n > 0 else False
     
     def plot(self):
         r = self._radius * 1e6
