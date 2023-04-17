@@ -16,35 +16,8 @@ class GrinFiberCoupler(GrinSpeckle):
         super().__init__(fiber, grid, N_modes, noise_std)
         self.field = field
         self.coupling_matrix = None
-        self.decompose(self.N_modes)
+        self.modes_coeffs, self.orient_coeffs = self.decompose(self.N_modes)
         self.recompose()
-
-    def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):
-        N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
-        modes_coeffs = np.zeros(shape=(N_modes), dtype=np.complex64)
-        orient_coeffs = np.zeros(shape=(N_modes))
-
-        for i in range(N_modes):
-            n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
-            mode = GrinLPMode(n, m)
-            mode.compute(self.fiber, self.grid)
-            mode0, mode90 = mode._fields[:,:,0], mode._fields[:,:,1]
-
-            if n == 0: # Centro-symmetric mode
-                Cp = GrinSpeckle.power_overlap_integral(self.field, mode0)
-                phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode0)
-                modes_coeffs[i] = np.sqrt(Cp) * np.exp(1j * phi)
-            else:
-                Cp1 = GrinSpeckle.power_overlap_integral(self.field, mode0)
-                Cp2 = GrinSpeckle.power_overlap_integral(self.field, mode90)
-                Cor = Cp1 / (Cp1 + Cp2)
-                mode_orient = np.sqrt(Cor) * mode0 +  np.sqrt(1 - Cor) * mode90
-                phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_orient)
-                modes_coeffs[i] = np.sqrt(Cp1 + Cp2) * np.exp(1j * phi)
-                orient_coeffs[i] = Cor
-
-        self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs) if normalize_coeffs else modes_coeffs
-        self.orient_coeffs = orient_coeffs
 
     def propagate(self, matrix: np.ndarray = None, complex: bool = True, full: bool = False):
         if matrix is None:
