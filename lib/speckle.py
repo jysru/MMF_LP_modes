@@ -70,18 +70,18 @@ class GrinSpeckle():
             mode.compute(self.fiber, self.grid)
             mode0, mode90 = mode._fields[:,:,0], mode._fields[:,:,1]
             
-            if mode.is_centrosymmetric:
-                modes_coeffs[i] = GrinSpeckle.complex_overlap_integral(self.field, mode0)
+            if mode.is_centrosymmetric: # Centro-symmetric mode
+                Cp = GrinSpeckle.power_overlap_integral(self.field, mode0)
+                phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode0)
+                modes_coeffs[i] = Cp * np.exp(1j * phi)
             else: # Non centro-symmetric mode
-                # Decompose on degenerates
-                Cp1 = GrinSpeckle.complex_overlap_integral(self.field, mode0)
-                Cp2 = GrinSpeckle.complex_overlap_integral(self.field, mode90)
-                # Compute oriented mode from coefficient power ratio
-                Cor = np.square(np.abs(Cp1)) / np.abs(np.square(Cp1) + np.square(Cp2))
+                Cp1 = GrinSpeckle.power_overlap_integral(self.field, mode0)
+                Cp2 = GrinSpeckle.power_overlap_integral(self.field, mode90)
+                Cor = Cp1 / (Cp1 + Cp2)
                 mode_orient = np.sqrt(Cor) * mode0 +  np.sqrt(1 - Cor) * mode90
+                phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_orient)
+                modes_coeffs[i] = np.sqrt(Cp1 + Cp2) * np.exp(1j * phi)
                 orient_coeffs[i] = Cor
-                # Compute coefficient from oriented mode
-                modes_coeffs[i] = GrinSpeckle.complex_overlap_integral(self.field, mode_orient)
 
         modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs) if normalize_coeffs else modes_coeffs
         return modes_coeffs, orient_coeffs
@@ -177,7 +177,6 @@ class GrinSpeckle():
         x = np.arange(self.N_modes)
         nm = self.fiber._neff_hnm[:self.N_modes, 2:].astype(int)
         nm_strings = [f"{nm[i,0]:d},{nm[i,1]:d}" for i in range(nm.shape[0])]
-        print(nm_strings)
 
         fig = plt.figure(figsize=(15,7))
         ax = plt.gca()
@@ -234,27 +233,30 @@ class DegenGrinSpeckle(GrinSpeckle):
             self.modes_coeffs = coeffs
         else:
             self._modes_random_coeffs()
-
-        k = 0
-        for i in range(self.fiber._N_modes):
+        
+        k, i = 0, 0
+        while k < self.N_modes:
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
             mode = GrinLPMode(n, m)
             mode.compute(self.fiber, self.grid)
 
-            is_degenerated = True if n > 0 else False
-            if is_degenerated:
+            if mode.is_degenerated:
                 try:
                     fields[:, :, k] = mode._fields[:, :, 0]
-                    fields[:, :, k + 1] = mode._fields[:, :, 1]
                 except IndexError:
-                    continue
+                    break
+                try:
+                    fields[:, :, k] = mode._fields[:, :, 1]
+                except IndexError:
+                    break
                 k += 2
             else:
                 try:
                     fields[:, :, k] = mode._fields[:, :, 0]
                 except IndexError:
-                    continue
+                    break
                 k += 1
+            i += 1
 
         field = 0
         for i in range(self.N_modes):
@@ -277,25 +279,35 @@ class DegenGrinSpeckle(GrinSpeckle):
     def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):
         N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
         modes_coeffs = np.zeros(shape=(self.N_modes), dtype=np.complex64)
+        k, i = 0, 0
 
-        k = 0
-        for i in range(N_modes):
+        while k < N_modes:
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
             mode = GrinLPMode(n, m)
             mode.compute(self.fiber, self.grid)
             if mode.is_degenerated:
                 try:
-                    modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
-                    modes_coeffs[k + 1] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 1])
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 0])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 0])
+                    modes_coeffs[k] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
-                    continue
+                    break
+                try:
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 1])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 1])
+                    modes_coeffs[k + 1] = np.sqrt(Cp) * np.exp(1j * phi)
+                except IndexError:
+                    break
                 k += 2
             else:
                 try:
-                    modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 0])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 0])
+                    modes_coeffs[k + 1] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
-                    continue
+                    break
                 k += 1
+            i += 1
         return GrinSpeckle._normalize_coeffs(modes_coeffs) if normalize_coeffs else modes_coeffs
     
     def _sanity_checker(self, normalize_coeffs: bool = False):
@@ -313,40 +325,30 @@ class DegenGrinSpeckle(GrinSpeckle):
         )
 
     def plot_coefficients(self):
-        x = np.arange(self.N_modes)
         nm = self.fiber._neff_hnm[:self.N_modes, 2:].astype(int)
         nm_strings = []
-        k = 0
-        for i in range(self.N_modes):
-            if nm[i,0] == 0:
-                try:
-                    nm_strings.append(f"{nm[k,0]:d},{nm[k,1]:d}")
-                except:
-                    pass
-                k += 1
-            else:
-                try:
-                    nm_strings.append(f"{nm[k,0]:d},{nm[k,1]:d}a")
-                except:
-                    pass
-                try:
-                    nm_strings.append(f"{nm[k,0]:d},{nm[k,1]:d}b")
-                except:
-                    pass
-                k += 2
-            if k >= self.N_modes:
-                break
-        print(nm_strings)
+        k, i = 0, 0
 
+        while k < self.N_modes:
+            if nm[i, 0] != 0:
+                nm_strings.append(f"{nm[i,0]:d},{nm[i,1]:d}a")
+                nm_strings.append(f"{nm[i,0]:d},{nm[i,1]:d}b")
+                k += 2
+            else:
+                nm_strings.append(f"{nm[i,0]:d},{nm[i,1]:d}")
+                k += 1
+            i += 1                
+        
+        x = np.arange(len(nm_strings[:self.N_modes]))
         fig = plt.figure(figsize=(15,7))
         ax = plt.gca()
-        pl = plt.bar(x, self.coeffs_intensity * 100)
+        pl = plt.bar(x[:self.coeffs_intensity.shape[0]], self.coeffs_intensity * 100)
         ax_t = ax.secondary_xaxis('top')
         ax_t.tick_params(axis='x', direction='in')
-        ax_t.set_xlabel("LP mode linear index")
+        ax_t.set_xlabel("LP degenerated mode linear index")
 
         ax.set_xlabel(r"LP$_{n,m}$ mode")
-        ax.set_xticks(x, nm_strings, rotation='vertical')
+        ax.set_xticks(x, nm_strings[:self.N_modes], rotation='vertical')
         ax.set_ylabel("Energy percentage [%]")
         ax.set_title(
             f"Energy percentage on LP modes "
