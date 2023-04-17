@@ -246,7 +246,7 @@ class DegenGrinSpeckle(GrinSpeckle):
                 except IndexError:
                     break
                 try:
-                    fields[:, :, k] = mode._fields[:, :, 1]
+                    fields[:, :, k + 1] = mode._fields[:, :, 1]
                 except IndexError:
                     break
                 k += 2
@@ -303,7 +303,7 @@ class DegenGrinSpeckle(GrinSpeckle):
                 try:
                     Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 0])
                     phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 0])
-                    modes_coeffs[k + 1] = np.sqrt(Cp) * np.exp(1j * phi)
+                    modes_coeffs[k] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
                     break
                 k += 1
