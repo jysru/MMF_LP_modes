@@ -43,24 +43,34 @@ class GrinFiber:
     
     def modes_coupling_matrix(self, complex: bool = False, degen: bool = False, full: bool = False, decay_width: float = None):
         if full:
-            if degen:
-                return matproc.square_random_toeplitz(self._N_modes_degen, complex=complex, decay_width=decay_width)
-            else:
-                return matproc.square_random_toeplitz(self._N_modes, complex=complex, decay_width=decay_width)
+            n_modes = self._N_modes_degen if degen else self._N_modes
+            return matproc.square_random_toeplitz(n_modes, complex=complex, decay_width=decay_width)
         else:
-            return self._group_coupling_matrix(complex=complex)
+            return self._group_coupling_matrix(complex=complex, degen=degen)
 
-    def _group_coupling_matrix(self, complex: bool = False):
+    def _group_coupling_matrix(self, complex: bool = False, degen: bool = False):
         groups_neff, groups_indexes, groups_counts = np.unique(self._neff_hnm[:,0], return_index=True, return_counts=True)
         groups_neff = np.flip(groups_neff)
         groups_indexes = np.flip(groups_indexes)
         groups_counts = np.flip(groups_counts)
 
         dtype = np.complex128 if complex else np.float64
-        matrix = np.zeros(shape=(self._N_modes, self._N_modes), dtype=dtype)
-        for i, count in enumerate(groups_counts):
-            idx = groups_indexes[i]
-            matrix[idx:idx+count, idx:idx+count] = matproc.square_random_toeplitz(count, complex=complex)
+        if degen:
+            matrix = np.zeros(shape=(self._N_modes_degen, self._N_modes_degen), dtype=dtype)
+            degens_counter = 0
+            for i, count in enumerate(groups_counts):
+                if i < groups_neff.shape[0] - 1: 
+                    degens_in_group = np.sum(self._neff_hnm[groups_indexes[i]:groups_indexes[i+1], 2] > 0)
+                else:
+                    degens_in_group = np.sum(self._neff_hnm[groups_indexes[i]:, 2] > 0)
+                idx = groups_indexes[i] + degens_counter
+                matrix[idx:idx+count+degens_in_group, idx:idx+count+degens_in_group] = matproc.square_random_toeplitz(count+degens_in_group, complex=complex)
+                degens_counter += degens_in_group
+        else:
+            matrix = np.zeros(shape=(self._N_modes, self._N_modes), dtype=dtype)
+            for i, count in enumerate(groups_counts):
+                idx = groups_indexes[i]
+                matrix[idx:idx+count, idx:idx+count] = matproc.square_random_toeplitz(count, complex=complex)
         return matrix
 
     @property
@@ -141,7 +151,7 @@ class GrinFiber:
 
 if __name__ == "__main__":
     fiber = GrinFiber()
-    matrix = fiber.modes_coupling_matrix(complex=True)
+    matrix = fiber.modes_coupling_matrix(complex=True, degen=True)
     GrinFiber.plot_coupling_matrix(matrix, complex=True)
     plt.show()
     
