@@ -8,10 +8,10 @@ import matplotlib.pyplot as plt
 from lib.grid import Grid
 from lib.fiber import GrinFiber
 from lib.modes import GrinLPMode
-from lib.speckle import GrinSpeckle
+from lib.speckle import GrinSpeckle, DegenGrinSpeckle
 from lib.beams import GaussianBeam
 from lib.devices import MockDeformableMirror
-from lib.coupling import GrinFiberCoupler
+from lib.coupling import GrinFiberCoupler, GrinFiberDegenCoupler
 from lib.transforms import fresnel_transform, fourier_transform
 
 default_nprocs = multiprocessing.cpu_count()
@@ -203,6 +203,27 @@ class GrinLPSpeckleDataset:
     
     def __getitem__(self, idx):
         return self.intensities[:, :, idx]
+    
+
+class GrinLPDegenSpeckleDataset(GrinLPSpeckleDataset):
+    """Random combination of LP modes from GRIN fiber, from a degenerated basis."""
+
+    def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 15, noise_std: float = 0, coupling_matrix=None) -> None:
+        super().__init__(fiber, grid, length, N_modes, noise_std, coupling_matrix)
+
+    def compute(self):
+        self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+        self._modes_coeffs = np.zeros(shape=(self._N_modes, self.length), dtype=np.complex128)
+        for i in range(self.length):
+            speckle = DegenGrinSpeckle(self._fiber, self._grid, N_modes=self._N_modes, noise_std = self._noise_std)
+            speckle._modes_random_coeffs()
+            speckle.compose(coeffs=(speckle.modes_coeffs))
+            self._modes_coeffs[:, i] = speckle.modes_coeffs
+
+            if self._coupling_matrix is not None:
+                modes_coeffs = np.dot(self._coupling_matrix[:speckle.modes_coeffs.shape[0], :speckle.modes_coeffs.shape[0]], speckle.modes_coeffs)
+                speckle.compose(coeffs=(modes_coeffs))
+            self._fields[:, :, i] = speckle.field
 
     
 class SimulatedGrinSpeckleOutputDataset:
@@ -242,14 +263,15 @@ class SimulatedGrinSpeckleOutputDataset:
             beam.field = dm._field_matrix
 
             if self._degenerated:
-                coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
+                coupled_in = GrinFiberDegenCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
             else:
                 coupled_in = GrinFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
-            propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
+            # propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
 
             self._input_fields[:,:,i] = dm._field_matrix
             self._phase_maps[:,:,i] = phase_map
-            self._fields[:,:,i] = propagated_field
+            # self._fields[:,:,i] = propagated_field
+            self._fields[:,:,i] = coupled_in.field
 
             dm.magnify_by(magnification)
             beam.grid.magnify_by(magnification)
