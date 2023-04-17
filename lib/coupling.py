@@ -16,7 +16,6 @@ class GrinFiberCoupler(GrinSpeckle):
         super().__init__(fiber, grid, N_modes, noise_std)
         self.field = field
         self.coupling_matrix = None
-        # self.modes_coeffs, self.orient_coeffs = self.decompose(self.N_modes)
         self.decompose(self.N_modes)
         self.recompose()
 
@@ -77,7 +76,7 @@ class GrinFiberDegenCoupler(DegenGrinSpeckle):
         self.modes_coeffs = self.decompose(self.N_modes)
         self.recompose()
 
-    def propagate(self, matrix: np.ndarray = None, complex: bool = True, full: bool = True):
+    def propagate(self, matrix: np.ndarray = None, complex: bool = True, full: bool = False):
         if matrix is None:
             self.coupling_matrix = self.fiber.modes_coupling_matrix(complex=complex, full=full, degen=True)
         else:
@@ -114,8 +113,6 @@ if __name__ == "__main__":
     beam.grid.reduce_by(200)
     beam.field = dm._field_matrix 
     beam.normalize_by_energy()
-    # coupled = GrinFiberCoupler(beam.field, beam.grid, fiber=GrinFiber(), N_modes=55)
-    # print(f"Coupled energy: {coupled.energy}")
     coupled = GrinFiberDegenCoupler(beam.field, beam.grid, fiber=GrinFiber(), N_modes=113)
     print(f"Coupled energy: {coupled.energy}")
 
