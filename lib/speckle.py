@@ -243,13 +243,18 @@ class DegenGrinSpeckle(GrinSpeckle):
 
             is_degenerated = True if n > 0 else False
             if is_degenerated:
-                fields[:, :, k] = mode._fields[:, :, 0]
-                fields[:, :, k + 1] = mode._fields[:, :, 1]
+                try:
+                    fields[:, :, k] = mode._fields[:, :, 0]
+                    fields[:, :, k + 1] = mode._fields[:, :, 1]
+                except IndexError:
+                    continue
                 k += 2
             else:
-                fields[:, :, k] = mode._fields[:, :, 0]
+                try:
+                    fields[:, :, k] = mode._fields[:, :, 0]
+                except IndexError:
+                    continue
                 k += 1
-            
 
         field = 0
         for i in range(self.N_modes):
@@ -279,11 +284,17 @@ class DegenGrinSpeckle(GrinSpeckle):
             mode = GrinLPMode(n, m)
             mode.compute(self.fiber, self.grid)
             if mode.is_degenerated:
-                modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
-                modes_coeffs[k + 1] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 1])
+                try:
+                    modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
+                    modes_coeffs[k + 1] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 1])
+                except IndexError:
+                    continue
                 k += 2
             else:
-                modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
+                try:
+                    modes_coeffs[k] = GrinSpeckle.complex_overlap_integral(self.field, mode._fields[:, :, 0])
+                except IndexError:
+                    continue
                 k += 1
         return GrinSpeckle._normalize_coeffs(modes_coeffs) if normalize_coeffs else modes_coeffs
     
