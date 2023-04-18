@@ -245,6 +245,7 @@ class SimulatedGrinSpeckleOutputDataset:
         self._normalized_energy_on_macropixels = None
         self._degenerated = degen
         self._transfer_matrix = None
+        self._transf = None
 
     def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
         self._phase_dims = phases_dim
@@ -278,13 +279,28 @@ class SimulatedGrinSpeckleOutputDataset:
             self._input_fields[:,:,i] = dm._field_matrix
             self._phase_maps[:,:,i] = phase_map
             self._fields[:,:,i] = propagated_field
-            # self._fields[:,:,i] = coupled_in.field
 
             dm.magnify_by(magnification)
             beam.grid.magnify_by(magnification)
             if verbose:
                 print(f"Computed couple {i+1}/{self.length}")
             self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
+
+    def compute_fresnel_transforms(self, delta_z: float, pad: float = 2):
+        if self._fields is not None:
+            self._transf = np.zeros_like(self._fields)
+            for i in range(self.length):
+                self._transf[:, :, i] = fresnel_transform(self._fields[:, :, i], self._grid, delta_z=delta_z, pad=pad)
+        else:
+            print("Run compute method first!")
+
+    def compute_fourier_transforms(self, pad: float = 2):
+        if self._fields is not None:
+            self._transf = np.zeros_like(self._fields)
+            for i in range(self.length):
+                self._transf[:, :, i] = fourier_transform(self._fields[:, :, i], pad=pad)
+        else:
+            print("Run compute method first!")
 
     def _compute_transfer_matrix(self, dm: MockDeformableMirror, grid: Grid):
         dm.compute_transfer_matrix_amplitudes()
@@ -310,22 +326,33 @@ class SimulatedGrinSpeckleOutputDataset:
         val = np.square(np.abs(self._fields))
         return np.abs(val + self._noise_std * np.random.randn(*val.shape))
     
-    def export(self, path: str = '.', name: str = None, verbose: bool = True):
+    def export(self, path: str = '.', name: str = None, verbose: bool = True, return_fields: bool = False):
         if name is None:
             default_name = f"synth_dset_grin_Nmodes={self._N_modes}_len={self.length}_mirr={self.phases_size}"
             name = default_name
         savename = os.path.join(path, f"{name}.mat")
 
-        savemat(
-                file_name = savename,
-                mdict = {
+
+        coupling_matrix = [] if self._coupling_matrix is None else self._coupling_matrix
+        transfer_matrix = [] if self._transfer_matrix is None else self._transfer_matrix
+
+        mdict = {
                     'phase_maps': self._phase_maps, 'intens': self.intensities,
                     'input_fields': self._input_fields,
-                    'coupling_matrix': self._coupling_matrix,
-                    'transfer_matrix': self._transfer_matrix,
+                    'coupling_matrix': coupling_matrix,
+                    'transfer_matrix': transfer_matrix,
                     'length': self.length, 'N_modes': self._N_modes,
                     'macropixels_energy': self._normalized_energy_on_macropixels,
                 }
+
+        if self._transf is not None:
+            mdict['transf'] = np.square(np.abs(self._transf))
+        if return_fields:
+            mdict['fields'] = self._fields
+
+        savemat(
+                file_name = savename,
+                mdict = mdict,
             )
         
         if verbose:
