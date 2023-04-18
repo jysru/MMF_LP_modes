@@ -302,6 +302,16 @@ class SimulatedGrinSpeckleOutputDataset:
         else:
             print("Run compute method first!")
 
+    def compute_fresnel_and_fourier_transforms(self, fresnel_delta_z: float, fourier_pad: float = 2, fresnel_pad: float = 2):
+        if self._fields is not None:
+            self._transf = np.zeros(shape=(self._fields.shape[0], 2*self._fields.shape[1], self._fields.shape[2]), dtype=np.complex128)
+            for i in range(self.length):
+                fres = fresnel_transform(self._fields[:, :, i], self._grid, delta_z=fresnel_delta_z, pad=fresnel_pad)
+                four = fourier_transform(self._fields[:, :, i], pad=fourier_pad)
+                self._transf[:, :, i] = np.concatenate((fres, four), axis=1)
+        else:
+            print("Run compute method first!")
+
     def _compute_transfer_matrix(self, dm: MockDeformableMirror, grid: Grid):
         dm.compute_transfer_matrix_amplitudes()
         self._transfer_matrix = np.zeros(shape=(dm._transfer_matrix_amplitudes.shape[0], grid.pixel_numbers[0], grid.pixel_numbers[1]), dtype=np.complex128)
@@ -326,19 +336,21 @@ class SimulatedGrinSpeckleOutputDataset:
         val = np.square(np.abs(self._fields))
         return np.abs(val + self._noise_std * np.random.randn(*val.shape))
     
-    def export(self, path: str = '.', name: str = None, verbose: bool = True, return_fields: bool = False):
+    def export(self, path: str = '.', name: str = None, verbose: bool = True, return_input_fields: bool = False, return_output_fields: bool = False):
         if name is None:
-            default_name = f"synth_dset_grin_Nmodes={self._N_modes}_len={self.length}_mirr={self.phases_size}"
+            default_name = f"synth_dset_grin_Nmodes={self._N_modes}_degen={self._degenerated}_len={self.length}_mirr={self.phases_size}"
+            if return_output_fields:
+                name = default_name + '_fields'
+            if self._transf is not None:
+                name = default_name + '_transf'
             name = default_name
         savename = os.path.join(path, f"{name}.mat")
-
 
         coupling_matrix = [] if self._coupling_matrix is None else self._coupling_matrix
         transfer_matrix = [] if self._transfer_matrix is None else self._transfer_matrix
 
         mdict = {
                     'phase_maps': self._phase_maps, 'intens': self.intensities,
-                    'input_fields': self._input_fields,
                     'coupling_matrix': coupling_matrix,
                     'transfer_matrix': transfer_matrix,
                     'length': self.length, 'N_modes': self._N_modes,
@@ -347,7 +359,9 @@ class SimulatedGrinSpeckleOutputDataset:
 
         if self._transf is not None:
             mdict['transf'] = np.square(np.abs(self._transf))
-        if return_fields:
+        if return_input_fields:
+            mdict['fields'] = self._input_fields
+        if return_output_fields:
             mdict['fields'] = self._fields
 
         savemat(
