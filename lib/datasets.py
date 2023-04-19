@@ -334,7 +334,7 @@ class SimulatedGrinSpeckleOutputDataset:
     @property
     def intensities(self):
         val = np.square(np.abs(self._fields))
-        return np.abs(val + self._noise_std * np.random.randn(*val.shape))
+        return np.abs(val / np.max(val) + self._noise_std * np.random.randn(*val.shape))
     
     def export(self, path: str = '.', name: str = None, verbose: bool = True, return_input_fields: bool = False, return_output_fields: bool = False):
         if name is None:
