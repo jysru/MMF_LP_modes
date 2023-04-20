@@ -362,6 +362,7 @@ if __name__ == "__main__":
     fiber = GrinFiber()
     speckle = DegenGrinSpeckle(fiber, grid, N_modes=fiber._N_modes_degen)
     speckle.compose()
+    
     coeffs = speckle.decompose(N_modes = fiber._N_modes_degen)
     speckle._sanity_checker(normalize_coeffs=True)
     speckle.plot(complex=True)
