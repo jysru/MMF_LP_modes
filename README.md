@@ -21,6 +21,7 @@ $ pip install -e .
 - Devices: Essentially supporting macropixel phase-shifts and support constraints to the input field. Aims at mimicking an ideal deformable mirror.
 - Coupling: Couples an optical field to the GRIN fiber using LP modes decomposition. Scrambles the mode through a LP modes coupling matrix.
 - Datasets: Generates datasets on support 2D grid for later usage: Pure GRIN LP modes, GRIN speckles (limited to N modes), or Propagated GRIN speckles (using defined mode coupling matrix).
+- Transforms: Fourier and Fresnel transforms.
 
 
 ## Examples
