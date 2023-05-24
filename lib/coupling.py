@@ -81,7 +81,7 @@ if __name__ == "__main__":
 
     grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
     beam = beams.GaussianBeam(grid)
-    beam.compute(amplitude=1, width=3000e-6, centers=[0,0])
+    beam.compute(amplitude=1, width=5100e-6, centers=[0,0])
     dm.apply_amplitude_map(beam.amplitude)
     dm.reduce_by(200)
     dm.plot()
@@ -102,3 +102,4 @@ if __name__ == "__main__":
     print(np.sum(np.square(np.abs(speck))))
     print(coupled)
     plt.show()
+
