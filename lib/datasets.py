@@ -253,7 +253,7 @@ class SimulatedGrinSpeckleOutputDataset:
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
         self._input_fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
 
-        dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=(128,128))
+        dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=self._grid.pixel_numbers)
         dm_grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
         beam = GaussianBeam(dm_grid)
         beam.compute(width=beam_width)
@@ -285,6 +285,44 @@ class SimulatedGrinSpeckleOutputDataset:
             if verbose:
                 print(f"Computed couple {i+1}/{self.length}")
             self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
+
+    def compute_from_transfer_matrix(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True, ref_phi: int = None):
+        self._phase_dims = phases_dim
+        self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
+        self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+        self._input_fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+
+        dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=self._grid.pixel_numbers)
+        dm_grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
+        beam = GaussianBeam(dm_grid)
+        beam.compute(width=beam_width)
+        beam.normalize_by_energy()
+        dm.apply_amplitude_map(beam.amplitude)
+
+        phase_map = -np.pi + 2*np.pi*np.random.rand(*phases_dim)
+        dm.apply_phase_map(phase_map)
+        dm.reduce_by(magnification)
+        beam.grid.reduce_by(magnification)
+        beam.field = dm._field_matrix
+        self._compute_transfer_matrix(dm, beam.grid)
+        tm = self.reshaped_transfer_matrix
+        self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
+
+        for i in range(self.length):
+            phase_map = -np.pi + 2*np.pi*np.random.rand(*phases_dim)
+            if ref_phi is not None:
+                phase_map[np.unravel_index(ref_phi, phase_map.shape)] = 0
+
+            x = np.sqrt(self._normalized_energy_on_macropixels) * np.exp(1j * phase_map)
+            x = x.flatten()
+            y = (tm @ x).reshape(self._grid.pixel_numbers)
+
+            self._phase_maps[:,:,i] = phase_map
+            self._fields[:,:,i] = y
+
+            if verbose:
+                print(f"Computed couple {i+1}/{self.length}")
+            
 
     def compute_fresnel_transforms(self, delta_z: float, pad: float = 2):
         if self._fields is not None:
@@ -324,6 +362,14 @@ class SimulatedGrinSpeckleOutputDataset:
             self._transfer_matrix[i, :, :] = propagated_field
 
     @property
+    def reshaped_transfer_matrix(self):
+        tm = self._transfer_matrix.copy()
+        tm = np.swapaxes(self._transfer_matrix, 0, 2)
+        tm = np.swapaxes(tm, 0, 1)
+        tm = tm.reshape(np.prod(tm.shape[:-1]), tm.shape[-1])
+        return tm
+
+    @property
     def length(self):
         return self._length
     
@@ -334,7 +380,8 @@ class SimulatedGrinSpeckleOutputDataset:
     @property
     def intensities(self):
         val = np.square(np.abs(self._fields))
-        return np.abs(val / np.max(val) + self._noise_std * np.random.randn(*val.shape))
+        return val
+        # return np.abs(val / np.max(val) + self._noise_std * np.random.randn(*val.shape))
     
     def export(self, path: str = '.', name: str = None, verbose: bool = True, return_input_fields: bool = False, return_output_fields: bool = False):
         if name is None:
@@ -353,6 +400,7 @@ class SimulatedGrinSpeckleOutputDataset:
                     'phase_maps': self._phase_maps, 'intens': self.intensities,
                     'coupling_matrix': coupling_matrix,
                     'transfer_matrix': transfer_matrix,
+                    'reshaped_transfer_matrix': self.reshaped_transfer_matrix,
                     'length': self.length, 'N_modes': self._N_modes,
                     'macropixels_energy': self._normalized_energy_on_macropixels,
                 }
