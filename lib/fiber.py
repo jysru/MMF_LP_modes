@@ -140,7 +140,7 @@ class GrinFiber:
         f"  - Core index: {self.n1}\n"
         f"  - Cladding index: {self.n2}\n"
         f"  - Wavelength: {self.wavelength * 1e9} nm\n"
-        f"  - Numerical aperture: {self._NA} um\n"
+        f"  - Numerical aperture: {self._NA:.3f}\n"
         f"  - Number of guided LP modes: {self._N_modes}\n"
         f"  - Number of guided LP modes (counting degenerates): {self._N_modes_degen}\n"
         f"  - First 10 LP_n,m modes characteristics:\n"
