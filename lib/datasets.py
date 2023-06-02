@@ -382,14 +382,15 @@ class SimulatedGrinSpeckleOutputDataset:
         return np.square(np.abs(self._fields))
     
     @staticmethod
-    def add_intensity_noise(intens, mu: float = None, sigma: float = None, tau_mu_exp: float = 228, tau_sigma_exp: float = 1.258e-4):
+    def add_intensity_noise(intens, mu: float = None, sigma: float = None, tau_mu_exp: float = 228, tau_sigma_exp: float = 1.258e-4, stat_func: callable = np.median):
+        """Intensity matrix should have size: m x m x N"""
         if mu is None:
-            mu = tau_mu_exp * np.median(np.max(intens, axis=(0,1)))
+            mu = tau_mu_exp * stat_func(np.max(intens, axis=(0,1)))
         if sigma is None:
-            sigma = tau_sigma_exp * np.median(np.max(intens, axis=(0,1)))
+            sigma = tau_sigma_exp * stat_func(np.max(intens, axis=(0,1)))
         return np.abs(intens + mu + sigma * np.random.randn(*intens.shape))
     
-    def export(self, path: str = '.', name: str = None, verbose: bool = True, return_input_fields: bool = False, return_output_fields: bool = False, add_exp_noise: bool = False):
+    def export(self, path: str = '.', name: str = None, verbose: bool = True, return_input_fields: bool = False, return_output_fields: bool = False, add_exp_noise: bool = False, noise_func: callable = np.median):
         if name is None:
             default_name = f"synth_dset_grin_Nmodes={self._N_modes}_degen={self._degenerated}_len={self.length}_mirr={self.phases_size}"
             if return_output_fields:
@@ -403,7 +404,7 @@ class SimulatedGrinSpeckleOutputDataset:
 
         coupling_matrix = [] if self._coupling_matrix is None else self._coupling_matrix
         transfer_matrix = [] if self._transfer_matrix is None else self._transfer_matrix
-        intens = SimulatedGrinSpeckleOutputDataset.add_intensity_noise(self.intensities, mu=0) if add_exp_noise else self.intensities
+        intens = SimulatedGrinSpeckleOutputDataset.add_intensity_noise(self.intensities, mu=0, stat_func=noise_func) if add_exp_noise else self.intensities
 
         mdict = {
                     'phase_maps': self._phase_maps, 'intens': intens,
@@ -415,7 +416,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 }
 
         if self._transf is not None:
-            mdict['transf'] = SimulatedGrinSpeckleOutputDataset.add_intensity_noise(np.square(np.abs(self._transf)), mu=0) if add_exp_noise else np.square(np.abs(self._transf))
+            mdict['transf'] = SimulatedGrinSpeckleOutputDataset.add_intensity_noise(np.square(np.abs(self._transf)), mu=0, stat_func=noise_func) if add_exp_noise else np.square(np.abs(self._transf))
         if return_input_fields:
             mdict['fields'] = self._input_fields
         if return_output_fields:
