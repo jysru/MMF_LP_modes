@@ -2,15 +2,14 @@
 
 Compute LP modes from GRIN fibers. The modes are computed using analytical formulas, under the weak guidance assumption.
 
-
 ## Installation
 
 Use in virtual environment or you own environment:
+
 ```bash
 $ python -m pip install -r requirements.txt
 $ pip install -e .
 ```
-
 
 ## Main features
 
@@ -23,18 +22,16 @@ $ pip install -e .
 - Datasets: Generates datasets on support 2D grid for later usage: Pure GRIN LP modes, GRIN speckles (limited to N modes), or Propagated GRIN speckles (using defined mode coupling matrix).
 - Transforms: Fourier and Fresnel transforms.
 
-
 ## Examples
 
-- See [./notebooks/tutorial.ipynb](./notebooks/tutorial.ipynb) for basic library usage
-
+- See [./notebooks/tutorial.ipynb](./notebooks/tutorial.ipynb) for basic library usage.
+- See [./notebooks/generate_dataset.ipynb](./notebooks/generate_dataset.ipynb) for basic dataset generation.
 
 ## To-Do
 
 - Refactor architecture: Speckle is a sum of scalar fields, Beam is a scalar field, MockDeformableMirror is a particular scalar field.
 - Profile code and speed-up time consuming functions (particularly for heavy dataset generation).
 - Add support for Step-Index fibers.
-
 
 ## Notes
 
