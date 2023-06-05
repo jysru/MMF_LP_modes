@@ -429,7 +429,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 - `return_output_fields`: saves fiber-output optical fields into the data file (optional, bool, default = `True`)
                 - `add_exp_noise`: adds experimental-like noise to intensities (optional, bool, default = `False`)
                 - `noise_func`: defines noise function for experimental-like noise application to intensities (optional, callable, default = `np.median`)
-                - `file_type`: defines data file type (optional, str, default = `'matlab_v6'`)
+                - `file_type`: defines data file type (optional, str, default = `'matlab'`)
 
             The exported matfile has the following fields:
                 - `phase_maps`: Phase maps used to generate the corresponding fiber-output optical field.
