@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lib import matrix as matproc
-from lib.plots import complex_image
+from mmfsim import matrix as matproc
+from mmfsim.plots import complex_image
 
 
 class GrinFiber:

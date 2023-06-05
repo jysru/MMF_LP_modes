@@ -1,13 +1,13 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lib.grid import Grid
-from lib.fiber import GrinFiber
-from lib.modes import GrinLPMode
-from lib.speckle import GrinSpeckle, DegenGrinSpeckle
-from lib.devices import MockDeformableMirror
-from lib.plots import complex_image
-import lib.beams as beams
+from mmfsim.grid import Grid
+from mmfsim.fiber import GrinFiber
+from mmfsim.modes import GrinLPMode
+from mmfsim.speckle import GrinSpeckle, DegenGrinSpeckle
+from mmfsim.devices import MockDeformableMirror
+from mmfsim.plots import complex_image
+import mmfsim.beams as beams
 
 
 class GrinFiberCoupler(GrinSpeckle):

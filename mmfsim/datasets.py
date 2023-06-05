@@ -5,14 +5,14 @@ from scipy.linalg import toeplitz
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lib.grid import Grid
-from lib.fiber import GrinFiber
-from lib.modes import GrinLPMode
-from lib.speckle import GrinSpeckle, DegenGrinSpeckle
-from lib.beams import GaussianBeam
-from lib.devices import MockDeformableMirror
-from lib.coupling import GrinFiberCoupler, GrinFiberDegenCoupler
-from lib.transforms import fresnel_transform, fourier_transform
+from mmfsim.grid import Grid
+from mmfsim.fiber import GrinFiber
+from mmfsim.modes import GrinLPMode
+from mmfsim.speckle import GrinSpeckle, DegenGrinSpeckle
+from mmfsim.beams import GaussianBeam
+from mmfsim.devices import MockDeformableMirror
+from mmfsim.coupling import GrinFiberCoupler, GrinFiberDegenCoupler
+from mmfsim.transforms import fresnel_transform, fourier_transform
 
 default_nprocs = multiprocessing.cpu_count()
 

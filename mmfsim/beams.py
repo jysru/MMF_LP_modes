@@ -3,8 +3,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 import scipy.special as sp
 
-from lib.grid import Grid
-from lib.plots import complex_image
+from mmfsim.grid import Grid
+from mmfsim.plots import complex_image
 
 
 class Beam(ABC):

@@ -1,10 +1,10 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lib.grid import Grid
-from lib.fiber import GrinFiber
-from lib.modes import GrinLPMode
-from lib.plots import complex_image
+from mmfsim.grid import Grid
+from mmfsim.fiber import GrinFiber
+from mmfsim.modes import GrinLPMode
+from mmfsim.plots import complex_image
 
 
 class GrinSpeckle():

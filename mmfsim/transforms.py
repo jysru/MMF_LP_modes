@@ -1,8 +1,8 @@
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lib.grid import Grid
-from lib.beams import GaussianBeam
+from mmfsim.grid import Grid
+from mmfsim.beams import GaussianBeam
 
 
 def crop_img(img, newsize):

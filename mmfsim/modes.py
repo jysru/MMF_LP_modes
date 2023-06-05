@@ -2,8 +2,8 @@ from functools import lru_cache
 import numpy as np
 import matplotlib.pyplot as plt
 
-from lib.grid import Grid
-from lib.fiber import GrinFiber
+from mmfsim.grid import Grid
+from mmfsim.fiber import GrinFiber
 
 lru_cache_default_size = 1024
 

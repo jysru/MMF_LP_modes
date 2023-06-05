@@ -3,9 +3,9 @@ import numpy as np
 from scipy import interpolate
 import matplotlib.pyplot as plt
 
-from lib.grid import Grid
-import lib.beams as beams
-import lib.matrix as matproc
+from mmfsim.grid import Grid
+import mmfsim.beams as beams
+import mmfsim.matrix as matproc
 
 
 deformable_mirror_diagonal_count = 34
