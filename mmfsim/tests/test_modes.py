@@ -1,9 +1,9 @@
 import unittest
 import numpy as np
 
-from lib.grid import Grid
-from lib.fiber import GrinFiber
-from lib.modes import GrinLPMode
+from mmfsim.grid import Grid
+from mmfsim.fiber import GrinFiber
+from mmfsim.modes import GrinLPMode
 
 
 class TestGrinLPMode(unittest.TestCase):

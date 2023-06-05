@@ -1,11 +1,11 @@
 import unittest
 import numpy as np
 
-from lib.grid import Grid
-from lib.fiber import GrinFiber
-from lib.modes import GrinLPMode
-from lib.beams import GaussianBeam
-from lib.coupling import GrinFiberCoupler
+from mmfsim.grid import Grid
+from mmfsim.fiber import GrinFiber
+from mmfsim.modes import GrinLPMode
+from mmfsim.beams import GaussianBeam
+from mmfsim.coupling import GrinFiberCoupler
 
 
 class TestCouplingGrinLPMode(unittest.TestCase):
