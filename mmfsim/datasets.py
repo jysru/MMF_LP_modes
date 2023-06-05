@@ -412,16 +412,24 @@ class SimulatedGrinSpeckleOutputDataset:
             sigma = tau_sigma_exp * stat_func(np.max(intens, axis=(0,1)))
         return np.abs(intens + mu + sigma * np.random.randn(*intens.shape))
     
-    def export(self, path: str = '.', name: str = None, verbose: bool = True, return_input_fields: bool = False, return_output_fields: bool = False, add_exp_noise: bool = False, noise_func: callable = np.median):
-        """ Export the generated dataset to a matfile.
+    def export(self, path: str = '.', name: str = None,
+               verbose: bool = True,
+               return_input_fields: bool = False,
+               return_output_fields: bool = False,
+               add_exp_noise: bool = False,
+               noise_func: callable = np.median,
+               file_type: str = 'matlab',
+               ):
+        """ Export the generated dataset to a matfile or numpy file.
 
             Input arguments:
-                - `path`: exported matfile base path (optional, str, default = current path)
-                - `name`: exported matfile base name (optional, str, default = appropriately generated)
-                - `return_input_fields`: saves fiber-input optical fields into the matfile (optional, bool, default = `False`)
-                - `return_output_fields`: saves fiber-output optical fields into the matfile (optional, bool, default = `True`)
+                - `path`: exported data file base path (optional, str, default = current path)
+                - `name`: exported data file base name (optional, str, default = appropriately generated)
+                - `return_input_fields`: saves fiber-input optical fields into the data file (optional, bool, default = `False`)
+                - `return_output_fields`: saves fiber-output optical fields into the data file (optional, bool, default = `True`)
                 - `add_exp_noise`: adds experimental-like noise to intensities (optional, bool, default = `False`)
                 - `noise_func`: defines noise function for experimental-like noise application to intensities (optional, callable, default = `np.median`)
+                - `file_type`: defines data file type (optional, str, default = `'matlab_v6'`)
 
             The exported matfile has the following fields:
                 - `phase_maps`: Phase maps used to generate the corresponding fiber-output optical field.
@@ -437,6 +445,10 @@ class SimulatedGrinSpeckleOutputDataset:
                 - `fields`: Optional field. Fiber-output optical fields. Returned if `return_output_fields` is set to `True`.
                 - `input_fields`: Optional field. Fiber-input optical fields. Returned if `return_input_fields` is set to `True`.
         """
+
+        _allowed_file_types = {'matlab', 'numpy'}
+        if file_type.lower() not in _allowed_file_types:
+            raise ValueError(f"Invalid file_type value. Must be in {_allowed_file_types}")
         
         if name is None:
             default_name = f"synth_dset_grin_Nmodes={self._N_modes}_degen={self._degenerated}_len={self.length}_mirr={self.phases_size}"
@@ -447,7 +459,6 @@ class SimulatedGrinSpeckleOutputDataset:
             name = default_name
             if add_exp_noise:
                 name = name + '_exp_noise'
-        savename = os.path.join(path, f"{name}.mat")
 
         coupling_matrix = [] if self._coupling_matrix is None else self._coupling_matrix
         transfer_matrix = [] if self._transfer_matrix is None else self._transfer_matrix
@@ -470,10 +481,15 @@ class SimulatedGrinSpeckleOutputDataset:
         if return_output_fields:
             mdict['fields'] = self._fields
 
-        savemat(
-                file_name = savename,
-                mdict = mdict,
-            )
+        if file_type.lower() == 'matlab':
+            savename = os.path.join(path, f"{name}.mat")
+            savemat(
+                    file_name = savename,
+                    mdict = mdict,
+                )
+        else:
+            savename = os.path.join(path, f"{name}.npy")
+            np.save(savename, mdict)
         
         if verbose:
             print(f"Dataset saved: {savename}")
