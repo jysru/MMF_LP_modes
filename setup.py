@@ -5,7 +5,7 @@ with open("README.md", "r") as fh:
 
 setuptools.setup(
     name="mmf-lp-modes",
-    version="0.1",
+    version="0.2",
     author="Jysru",
     author_email="jysru@pm.me",
     description="MMF_LP_modes_simulation",
