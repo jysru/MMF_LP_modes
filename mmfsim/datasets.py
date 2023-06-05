@@ -227,7 +227,13 @@ class GrinLPDegenSpeckleDataset(GrinLPSpeckleDataset):
 
     
 class SimulatedGrinSpeckleOutputDataset:
-    """Coupling from modal decomposition on GRIN fiber LP modes, then propagation using a random mode coupling matrix"""
+    """Coupling from modal decomposition on GRIN fiber LP modes, then propagation using a random mode coupling matrix
+    
+       Can use either degenerated modes coupling or non-degenerated mode couplings:
+            - With degenerated mode-coupling (default), the system has a an existing transfer matrix since the degenerated mode basis orientation is fixed.
+            - With non-degenerated mode-coupling, the system has no existing transfer matrix. The reason is that the degenerated mode basis
+              orientation is uncontrolled and might change between each modal decompostion.
+    """
 
     def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0, degen: bool = True) -> None:
         if degen:
@@ -248,6 +254,12 @@ class SimulatedGrinSpeckleOutputDataset:
         self._transf = None
 
     def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
+        """Computes dataset from random phases applied to partition and their associated fiber output complex field.
+
+           It is slow since the mode decomposition and recomposition is computed for each phase map.
+           Use compute_from_transfer_matrix method for a much faster version that provides the same result.
+        """
+
         self._phase_dims = phases_dim
         self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
@@ -287,6 +299,11 @@ class SimulatedGrinSpeckleOutputDataset:
             self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
 
     def compute_from_transfer_matrix(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True, ref_phi: int = None):
+        """Computes dataset from random phases applied to partition and their associated fiber output complex field.
+
+           It is fast since the output field is obtained via matrix multiplication from the computed transfer matrix.
+        """
+        
         self._phase_dims = phases_dim
         self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
         self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
@@ -324,21 +341,27 @@ class SimulatedGrinSpeckleOutputDataset:
                 print(f"Computed couple {i+1}/{self.length}")
             
 
-    def compute_fresnel_transforms(self, delta_z: float, pad: float = 2):
+    def compute_fresnel_transforms(self, delta_z: float, pad: float = 2, verbose: bool = True):
+        """Computes the Fresnel transforms of the computed fiber output complex fields."""
         if self._fields is not None:
             self._transf = np.zeros_like(self._fields)
             for i in range(self.length):
                 self._transf[:, :, i] = fresnel_transform(self._fields[:, :, i], self._grid, delta_z=delta_z, pad=pad)
+                if verbose:
+                    print(f"Computed Fresnel {i+1}/{self.length}")
         else:
-            print("Run compute method first!")
+            raise ValueError("Run compute or compute_from_transfer_matrix method first!")
 
-    def compute_fourier_transforms(self, pad: float = 2):
+    def compute_fourier_transforms(self, pad: float = 2, verbose: bool = True):
+        """Computes the Fourier transforms of the computed fiber output complex fields."""
         if self._fields is not None:
             self._transf = np.zeros_like(self._fields)
             for i in range(self.length):
                 self._transf[:, :, i] = fourier_transform(self._fields[:, :, i], pad=pad)
+                if verbose:
+                    print(f"Computed Fourier {i+1}/{self.length}")
         else:
-            print("Run compute method first!")
+            raise ValueError("Run compute or compute_from_transfer_matrix method first!")
 
     def compute_fresnel_and_fourier_transforms(self, fresnel_delta_z: float, fourier_pad: float = 2, fresnel_pad: float = 2):
         if self._fields is not None:
@@ -348,7 +371,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 four = fourier_transform(self._fields[:, :, i], pad=fourier_pad)
                 self._transf[:, :, i] = np.concatenate((fres, four), axis=1)
         else:
-            print("Run compute method first!")
+            raise ValueError("Run compute or compute_from_transfer_matrix method first!")
 
     def _compute_transfer_matrix(self, dm: MockDeformableMirror, grid: Grid):
         dm.compute_transfer_matrix_amplitudes()
@@ -416,7 +439,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 }
 
         if self._transf is not None:
-            mdict['transf'] = SimulatedGrinSpeckleOutputDataset.add_intensity_noise(np.square(np.abs(self._transf)), mu=0, stat_func=noise_func) if add_exp_noise else np.square(np.abs(self._transf))
+            mdict['intens_transf'] = SimulatedGrinSpeckleOutputDataset.add_intensity_noise(np.square(np.abs(self._transf)), mu=0, stat_func=noise_func) if add_exp_noise else np.square(np.abs(self._transf))
         if return_input_fields:
             mdict['fields'] = self._input_fields
         if return_output_fields:
