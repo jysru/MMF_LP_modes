@@ -1,4 +1,5 @@
 setuptools
+h5py
 numpy
 matplotlib
 pytest
