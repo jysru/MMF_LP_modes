@@ -229,7 +229,7 @@ class GrinLPDegenSpeckleDataset(GrinLPSpeckleDataset):
 class SimulatedGrinSpeckleOutputDataset:
     """Coupling from modal decomposition on GRIN fiber LP modes, then propagation using a random mode coupling matrix"""
 
-    def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0, degen: bool = False) -> None:
+    def __init__(self, fiber: GrinFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0, degen: bool = True) -> None:
         if degen:
             self._N_modes = fiber._N_modes_degen if N_modes > fiber._N_modes_degen else N_modes
         else:
