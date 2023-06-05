@@ -1,1 +1,1 @@
-python -m unittest discover -s lib/tests -v
+python -m unittest discover -s mmfsim/tests -v
