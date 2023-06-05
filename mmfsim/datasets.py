@@ -426,6 +426,7 @@ class SimulatedGrinSpeckleOutputDataset:
             The exported matfile has the following fields:
                 - `phase_maps`: Phase maps used to generate the corresponding fiber-output optical field.
                 - `intens`: Intensity of the fiber-output optical field (square modulus).
+                - `degenerated_modes`: Boolean indicating if the modes decomposition has been carried on fixed degenerated modes orientations.
                 - `coupling_matrix`: Fiber modes-coefficients coupling matrix, that has been used to simulated modes propagation in the fiber.
                 - `transfer_matrix`: Transfer matrix in image shape. Has dimensions Nact x Nx x Ny.
                 - `reshaped_transfer_matrix`: Reshaped transfer matrix for simple matrix products. Has dimensions Nact x (Nx x Ny).
@@ -454,6 +455,7 @@ class SimulatedGrinSpeckleOutputDataset:
 
         mdict = {
                     'phase_maps': self._phase_maps, 'intens': intens,
+                    'degenerated_modes': self._degenerated,
                     'coupling_matrix': coupling_matrix,
                     'transfer_matrix': transfer_matrix,
                     'reshaped_transfer_matrix': self.reshaped_transfer_matrix,
