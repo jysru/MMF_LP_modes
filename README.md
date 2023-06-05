@@ -2,7 +2,6 @@
 
 Compute LP modes from GRIN fibers. The modes are computed using analytical formulas, under the weak guidance assumption.
 
-
 ## Installation
 
 Use in virtual environment or you own environment:
@@ -23,17 +22,16 @@ $ pip install -e .
 - Datasets: Generates datasets on support 2D grid for later usage: Pure GRIN LP modes, GRIN speckles (limited to N modes), or Propagated GRIN speckles (using defined mode coupling matrix).
 - Transforms: Fourier and Fresnel transforms.
 
-
 ## Examples
 
 - See [./notebooks/tutorial.ipynb](./notebooks/tutorial.ipynb) for basic library usage.
 - See [./notebooks/generate_dataset.ipynb](./notebooks/generate_dataset.ipynb) for basic dataset generation.
 
-
 ## Exported dataset contents
 
 The datasets are exported as matfiles with version 6 (no compression, limited to 4Gb), pickled numpy files, or HDF5 files.
 The data is saved as a dictionnary with the following fields:
+
 - `phase_maps`: Phase maps used to generate the corresponding fiber-output optical field.
 - `intens`: Intensity of the fiber-output optical field (square modulus).
 - `degenerated_modes`: Boolean indicating if the modes decomposition has been carried on fixed degenerated modes orientations.
@@ -47,13 +45,47 @@ The data is saved as a dictionnary with the following fields:
 - `fields`: Optional field. Fiber-output optical fields. Returned if `return_output_fields` is set to `True`.
 - `input_fields`: Optional field. Fiber-input optical fields. Returned if `return_input_fields` is set to `True`.
 
+## Reading data saved as HDF5 file
+
+The data saved as a HDF5 file can easily be read as a dictionnary and converted to Numpy arrays using the following code snippet:
+
+```python
+import h5py
+
+mdict = {}
+
+with h5py.File('dataset.hdf5', 'r') as hf:
+    for key_name in hf.keys():
+        mdict[key_name] = hf[key_name][()]
+```
+
+It can also equivalently be read from MATLAB using the following code snippet:
+
+```matlab
+dset = struct([]);
+info = h5info('dataset.hdf5');
+
+for i = 1:numel(info.Datasets)
+    if strcmpi(info.Datasets(i).Dataspace.Type, 'scalar')
+        dset(1).(info.Datasets(i).Name) = h5read(dset_path, "/" + info.Datasets(i).Name);
+    elseif strcmpi(info.Datasets(i).Dataspace.Type, 'simple')
+        read_dset = h5read(dset_path, "/" + info.Datasets(i).Name);
+        if isstruct(read_dset)
+            dset(1).(info.Datasets(i).Name) = read_dset.r + 1i * read_dset.i;
+        else
+            dset(1).(info.Datasets(i).Name) = read_dset;
+        end
+    else
+        error("Not Implemented Dataspace type.")
+    end
+end
+```
 
 ## To-Do
 
 - Refactor architecture: Speckle is a sum of scalar fields, Beam is a scalar field, MockDeformableMirror is a particular scalar field.
 - Profile code and speed-up time consuming functions (particularly for heavy dataset generation).
 - Add support for Step-Index fibers.
-
 
 ## Notes
 
