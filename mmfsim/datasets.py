@@ -447,7 +447,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 - `input_fields`: Optional field. Fiber-input optical fields. Returned if `return_input_fields` is set to `True`.
         """
 
-        _allowed_file_types = {'matlab', 'numpy'}
+        _allowed_file_types = {'matlab', 'numpy', 'hdf5'}
         if file_type.lower() not in _allowed_file_types:
             raise ValueError(f"Invalid file_type value. Must be in {_allowed_file_types}")
         
@@ -488,87 +488,17 @@ class SimulatedGrinSpeckleOutputDataset:
                     file_name = savename,
                     mdict = mdict,
                 )
-        else:
+        elif file_type.lower() == 'numpy':
             savename = os.path.join(path, f"{name}.npy")
             np.save(savename, mdict)
-        
-        if verbose:
-            print(f"Dataset saved: {savename}")
-
-    def export_hdf5(self, path: str = '.', name: str = None,
-               verbose: bool = True,
-               return_input_fields: bool = False,
-               return_output_fields: bool = False,
-               add_exp_noise: bool = False,
-               noise_func: callable = np.median,
-               file_type: str = 'hdf5',
-               ):
-        """ Export the generated dataset to a matfile or numpy file.
-
-            Input arguments:
-                - `path`: exported data file base path (optional, str, default = current path)
-                - `name`: exported data file base name (optional, str, default = appropriately generated)
-                - `return_input_fields`: saves fiber-input optical fields into the data file (optional, bool, default = `False`)
-                - `return_output_fields`: saves fiber-output optical fields into the data file (optional, bool, default = `True`)
-                - `add_exp_noise`: adds experimental-like noise to intensities (optional, bool, default = `False`)
-                - `noise_func`: defines noise function for experimental-like noise application to intensities (optional, callable, default = `np.median`)
-                - `file_type`: defines data file type (optional, str, default = `'matlab'`)
-
-            The exported matfile has the following fields:
-                - `phase_maps`: Phase maps used to generate the corresponding fiber-output optical field.
-                - `intens`: Intensity of the fiber-output optical field (square modulus).
-                - `degenerated_modes`: Boolean indicating if the modes decomposition has been carried on fixed degenerated modes orientations.
-                - `coupling_matrix`: Fiber modes-coefficients coupling matrix, that has been used to simulated modes propagation in the fiber.
-                - `transfer_matrix`: Transfer matrix in image shape. Has dimensions Nact x Nx x Ny.
-                - `reshaped_transfer_matrix`: Reshaped transfer matrix for simple matrix products. Has dimensions Nact x (Nx x Ny).
-                - `length`: Dataset length.
-                - `N_modes`: Number of non-degerated LP modes allowed to propagate in the simulated fiber.
-                - `macropixels_energy`: Energy E on macropixels for the selected deformable mirror partitionning scheme. Use sqrt(E) weights on phase_maps to replicate output field.
-                - `intens_transf`: Optional field. Intensity (square modulus) of the transform (Fresnel or Fourier) of the fiber-output optical field.
-                - `fields`: Optional field. Fiber-output optical fields. Returned if `return_output_fields` is set to `True`.
-                - `input_fields`: Optional field. Fiber-input optical fields. Returned if `return_input_fields` is set to `True`.
-        """
-
-        _allowed_file_types = {'hdf5'}
-        if file_type.lower() not in _allowed_file_types:
+        elif file_type.lower() == 'hdf5':
+            savename = os.path.join(path, f"{name}.hdf5")
+            with h5py.File(savename, 'w') as hf:
+                for key_name in mdict:
+                    hf.create_dataset(name=key_name, data=mdict[key_name])
+        else:
             raise ValueError(f"Invalid file_type value. Must be in {_allowed_file_types}")
-        
-        if name is None:
-            default_name = f"synth_dset_grin_Nmodes={self._N_modes}_degen={self._degenerated}_len={self.length}_mirr={self.phases_size}"
-            if return_output_fields:
-                name = default_name + '_fields'
-            if self._transf is not None:
-                name = default_name + '_transf'
-            name = default_name
-            if add_exp_noise:
-                name = name + '_exp_noise'
-
-        coupling_matrix = [] if self._coupling_matrix is None else self._coupling_matrix
-        transfer_matrix = [] if self._transfer_matrix is None else self._transfer_matrix
-        intens = SimulatedGrinSpeckleOutputDataset.add_intensity_noise(self.intensities, mu=0, stat_func=noise_func) if add_exp_noise else self.intensities
-
-        mdict = {
-                    'phase_maps': self._phase_maps, 'intens': intens,
-                    'degenerated_modes': self._degenerated,
-                    'coupling_matrix': coupling_matrix,
-                    'transfer_matrix': transfer_matrix,
-                    'reshaped_transfer_matrix': self.reshaped_transfer_matrix,
-                    'length': self.length, 'N_modes': self._N_modes,
-                    'macropixels_energy': self._normalized_energy_on_macropixels,
-                }
-
-        if self._transf is not None:
-            mdict['intens_transf'] = SimulatedGrinSpeckleOutputDataset.add_intensity_noise(np.square(np.abs(self._transf)), mu=0, stat_func=noise_func) if add_exp_noise else np.square(np.abs(self._transf))
-        if return_input_fields:
-            mdict['input_fields'] = self._input_fields
-        if return_output_fields:
-            mdict['fields'] = self._fields
-
-        savename = os.path.join(path, f"{name}.hdf5")
-        with h5py.File(savename, 'w') as hf:
-            for key_name in mdict:
-                hf.create_dataset(name=key_name, data=mdict[key_name])
-        
+            
         if verbose:
             print(f"Dataset saved: {savename}")
     
