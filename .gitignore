@@ -1,5 +1,7 @@
 .vscode
 *.asv
 *.mat
+*.hdf5
+*.h5
 __pycache__*
 *egg-info*
