@@ -33,7 +33,7 @@ $ pip install -e .
 ## Exported dataset contents
 
 The datasets are exported as matfiles with version 6 (no compression, limited to 4Gb), pickled numpy files, or HDF5 files.
-The data is saved as a dictionnary contains the following fields:
+The data is saved as a dictionnary with the following fields:
 - `phase_maps`: Phase maps used to generate the corresponding fiber-output optical field.
 - `intens`: Intensity of the fiber-output optical field (square modulus).
 - `degenerated_modes`: Boolean indicating if the modes decomposition has been carried on fixed degenerated modes orientations.
