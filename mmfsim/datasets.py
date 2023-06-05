@@ -340,7 +340,7 @@ class SimulatedGrinSpeckleOutputDataset:
             if verbose:
                 print(f"Computed couple {i+1}/{self.length}")
 
-    def compute_fresnel_transforms(self, delta_z: float, pad: float = 2, verbose: bool = True):
+    def compute_fresnel_transforms(self, delta_z: float, pad: float = 1, verbose: bool = True):
         """Computes the Fresnel transforms of the computed fiber output complex fields."""
         if self._fields is not None:
             self._transf = np.zeros_like(self._fields)
@@ -351,7 +351,7 @@ class SimulatedGrinSpeckleOutputDataset:
         else:
             raise ValueError("Run compute or compute_from_transfer_matrix method first!")
 
-    def compute_fourier_transforms(self, pad: float = 2, verbose: bool = True):
+    def compute_fourier_transforms(self, pad: float = 1, verbose: bool = True):
         """Computes the Fourier transforms of the computed fiber output complex fields."""
         if self._fields is not None:
             self._transf = np.zeros_like(self._fields)
@@ -362,7 +362,7 @@ class SimulatedGrinSpeckleOutputDataset:
         else:
             raise ValueError("Run compute or compute_from_transfer_matrix method first!")
 
-    def compute_fresnel_and_fourier_transforms(self, fresnel_delta_z: float, fourier_pad: float = 2, fresnel_pad: float = 2):
+    def compute_fresnel_and_fourier_transforms(self, fresnel_delta_z: float, fourier_pad: float = 1, fresnel_pad: float = 1):
         if self._fields is not None:
             self._transf = np.zeros(shape=(self._fields.shape[0], 2*self._fields.shape[1], self._fields.shape[2]), dtype=np.complex128)
             for i in range(self.length):
