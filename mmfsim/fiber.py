@@ -89,7 +89,7 @@ class GrinFiber:
     def _N_modes_degen(self):
         centros = np.sum(self._neff_hnm[:, 2] == 0)
         non_centros = np.sum(self._neff_hnm[:, 2] > 0)
-        return centros + 2*non_centros
+        return centros + 2 * non_centros
 
     @property
     def _k0(self):
@@ -147,6 +147,16 @@ class GrinFiber:
         f"  n_eff      h          n          m\n"
         f"{self._neff_hnm[:10]}"
         )
+
+
+class StepIndexFiber(GrinFiber):
+    
+    def __init__(self, radius: float = 0.000026, wavelength: float = 0.000001064, n1: float = 1.455, n2: float = 1.45) -> None:
+        super().__init__(radius, wavelength, n1, n2)
+
+    @property
+    def _N_modes(self):
+        return np.floor(np.square(self._V) / 8).astype(int)
 
 
 if __name__ == "__main__":
