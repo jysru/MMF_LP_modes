@@ -1,13 +1,14 @@
 from functools import lru_cache
 import numpy as np
+import scipy.special as sp
 import matplotlib.pyplot as plt
 
 from mmfsim.grid import Grid
-from mmfsim.fiber import GrinFiber
+from mmfsim.fiber import GrinFiber, StepIndexFiber
 
 lru_cache_default_size = 1024
 
-@lru_cache(maxsize=lru_cache_default_size)
+# @lru_cache(maxsize=lru_cache_default_size)
 class GrinLPMode():
 
     def __init__(self, n: int, m: int, theta0: float = 0) -> None:
@@ -19,7 +20,7 @@ class GrinLPMode():
         self._y = None
         self._fields = None
 
-    @lru_cache(maxsize=lru_cache_default_size)
+    # @lru_cache(maxsize=lru_cache_default_size)
     def compute(self, fiber: GrinFiber, grid: Grid):
         self._radius = fiber.radius
         self._x = grid.x
@@ -96,10 +97,53 @@ class GrinLPMode():
         plt.colorbar(pl1, ax=axs[1])
 
 
+# @lru_cache(maxsize=lru_cache_default_size)
+class StepIndexLPMode(GrinLPMode):
+
+    def __init__(self, n: int, m: int, theta0: float = 0) -> None:
+        super().__init__(n, m, theta0)
+
+    # @lru_cache(maxsize=lru_cache_default_size)
+    def compute(self, fiber: StepIndexFiber, grid: Grid):
+        """ Computed from equations described here:
+            https://www.wavefrontshaping.net/post/id/2
+        """
+        self._radius = fiber.radius
+        self._x = grid.x
+        self._y = grid.y
+        self._centers = grid.offsets
+
+        # To be computed in StepIndexFiber class
+        beta = 1.453 * fiber._k0
+
+        u = fiber.radius * np.sqrt(np.square(fiber._k0 * fiber.n1) - np.square(beta))
+        w = fiber.radius * np.sqrt(np.square(beta) - np.square(fiber._k0 * fiber.n1))
+        
+        E_core = beta * fiber.radius / u * sp.jv(self.m, u / fiber.radius * grid.R)
+        E_clad = sp.jv(self.m, u) / sp.kv(self.m, w) * sp.kv(self.m, w / fiber.radius * grid.R)
+
+        E_radius = np.zeros(shape=(len(grid.x), len(grid.y)))
+        mask = (grid.R <= fiber.radius)
+        E_radius[mask] = E_core[mask]
+        # E_radius[np.logical_not(mask)] = E_clad[np.logical_not(mask)] ## Buggy for now
+
+        self._fields = np.zeros(shape=(len(grid.x), len(grid.y), 2))
+        self._fields[:,:,0] = E_radius * np.cos(self.n * grid.A + self.theta0)
+        self._fields[:,:,1] = E_radius * np.cos(self.n * grid.A + self.theta0 + np.pi)
+        self._fields = self._fields / np.sqrt(self.energies)
+
+
 if __name__ == "__main__":
+    # grid = Grid(pixel_size=0.5e-6)
+    # fiber = GrinFiber()
+    # mode = GrinLPMode(1,1)
+    # mode.compute(fiber, grid)
+    # mode.plot()
+    # plt.show()
+
     grid = Grid(pixel_size=0.5e-6)
-    fiber = GrinFiber()
-    mode = GrinLPMode(1,1)
+    fiber = StepIndexFiber()
+    mode = StepIndexLPMode(1,1)
     mode.compute(fiber, grid)
     mode.plot()
     plt.show()
