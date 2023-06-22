@@ -74,7 +74,7 @@ class GrinLPMode():
     def is_degenerated(self):
         return True if self.n > 0 else False
     
-    def plot(self):
+    def plot(self, cmap='bwr'):
         r = self._radius * 1e6
         extent = np.array([np.min(self._x), np.max(self._x), np.min(self._y), np.max(self._y)]) * 1e6
         str_mode = f"{self.n,self.m}"
@@ -83,8 +83,8 @@ class GrinLPMode():
         circle2 = plt.Circle((-self._centers[0], -self._centers[1]), r, fill=False, edgecolor='k', linestyle='--')
 
         fig, axs = plt.subplots(1, 2, figsize=(12,4))
-        pl0 = axs[0].imshow(self._fields[:,:,0], extent=extent, cmap="bwr")
-        pl1 = axs[1].imshow(self._fields[:,:,1], extent=extent, cmap="bwr")
+        pl0 = axs[0].imshow(self._fields[:,:,0], extent=extent, cmap=cmap)
+        pl1 = axs[1].imshow(self._fields[:,:,1], extent=extent, cmap=cmap)
         axs[0].add_patch(circle1)
         axs[1].add_patch(circle2)
         axs[0].set_xlabel("x [um]")
@@ -114,22 +114,22 @@ class StepIndexLPMode(GrinLPMode):
         self._centers = grid.offsets
 
         # To be computed in StepIndexFiber class
-        beta = 1.453 * fiber._k0
+        beta = 1.4639074 * fiber._k0
 
         u = fiber.radius * np.sqrt(np.square(fiber._k0 * fiber.n1) - np.square(beta))
-        w = fiber.radius * np.sqrt(np.square(beta) - np.square(fiber._k0 * fiber.n1))
+        w = fiber.radius * np.sqrt(np.square(beta) - np.square(fiber._k0 * fiber.n2))
         
-        E_core = beta * fiber.radius / u * sp.jv(self.m, u / fiber.radius * grid.R)
+        E_core = beta * fiber.radius / u * sp.jv(self.m-1, u / fiber.radius * grid.R)
         E_clad = sp.jv(self.m, u) / sp.kv(self.m, w) * sp.kv(self.m, w / fiber.radius * grid.R)
 
         E_radius = np.zeros(shape=(len(grid.x), len(grid.y)))
         mask = (grid.R <= fiber.radius)
         E_radius[mask] = E_core[mask]
-        # E_radius[np.logical_not(mask)] = E_clad[np.logical_not(mask)] ## Buggy for now
+        E_radius[np.logical_not(mask)] = E_clad[np.logical_not(mask)]
 
         self._fields = np.zeros(shape=(len(grid.x), len(grid.y), 2))
         self._fields[:,:,0] = E_radius * np.cos(self.n * grid.A + self.theta0)
-        self._fields[:,:,1] = E_radius * np.cos(self.n * grid.A + self.theta0 + np.pi)
+        self._fields[:,:,1] = E_radius * np.cos(self.n * grid.A + self.theta0 + np.pi/2)
         self._fields = self._fields / np.sqrt(self.energies)
 
 
@@ -141,9 +141,9 @@ if __name__ == "__main__":
     # mode.plot()
     # plt.show()
 
-    grid = Grid(pixel_size=0.5e-6)
-    fiber = StepIndexFiber()
+    grid = Grid(pixel_size=0.05e-6, pixel_numbers=(512,512))
+    fiber = StepIndexFiber(radius=6.5e-6, n1=1.465, n2=1.445)
     mode = StepIndexLPMode(1,1)
     mode.compute(fiber, grid)
-    mode.plot()
+    mode.plot(cmap='viridis')
     plt.show()
