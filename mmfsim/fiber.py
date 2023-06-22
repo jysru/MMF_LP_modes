@@ -151,7 +151,7 @@ class GrinFiber:
 
 class StepIndexFiber(GrinFiber):
     
-    def __init__(self, radius: float = 0.000026, wavelength: float = 0.000001064, n1: float = 1.455, n2: float = 1.45) -> None:
+    def __init__(self, radius: float = 6.5e-6, wavelength: float = 1064e-9, n1: float = 1.465, n2: float = 1.445) -> None:
         super().__init__(radius, wavelength, n1, n2)
 
     @property
