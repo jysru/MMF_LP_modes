@@ -2,8 +2,8 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from mmfsim.grid import Grid
-from mmfsim.fiber import GrinFiber
-from mmfsim.modes import GrinLPMode
+from mmfsim.fiber import GrinFiber, StepIndexFiber
+from mmfsim.modes import GrinLPMode, StepIndexLPMode
 from mmfsim.plots import complex_image
 
 
@@ -355,7 +355,53 @@ class DegenGrinSpeckle(GrinSpeckle):
             f"({self.N_modes} modes, total energy: {self.total_coeffs_intensity * 100:2.1f}%)"
         )
         return (fig, ax, pl)
-    
+
+
+class StepIndexSpeckle(GrinSpeckle):
+
+    def __init__(self, fiber: StepIndexFiber, grid: Grid, N_modes: int = 10, noise_std: float = 0.0) -> None:
+        super().__init__(fiber, grid, N_modes, noise_std)
+
+    def compose(self, coeffs: tuple[np.array, np.array] = None, oriented: bool = False):
+        fields1 = np.zeros(shape=(self.grid.pixel_numbers[0], self.grid.pixel_numbers[1], self.N_modes))
+        fields2 = np.zeros_like(fields1)
+
+        if coeffs is not None:
+            self.modes_coeffs = coeffs[0]
+            self.orient_coeffs = coeffs[1]
+        else:
+            self._modes_random_coeffs(oriented=oriented)
+
+        for i in range(self.N_modes):
+            n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
+            mode = StepIndexLPMode(n, m)
+            mode.compute(self.fiber, self.grid)
+            fields1[:,:,i], fields2[:,:,i] = mode._fields[:,:,0], mode._fields[:,:,1]
+
+        field = 0
+        for i in range(self.N_modes):
+            n = self.fiber._neff_hnm[i, 2]
+            Cp = self.modes_coeffs[i]
+            if n == 0: # Centro-symmetric mode
+                field += fields1[:,:,i] * Cp
+            else:
+                Cor = self.orient_coeffs[i]
+                tmp = fields1[:,:,i] * np.sqrt(Cor) + fields2[:,:,i] * np.sqrt(1 - Cor)
+                field += tmp * Cp
+        self.field = field
+
+    def __str__(self) -> str:
+        return (
+            f"\t {__class__.__name__} instance ({self.N_modes} modes) with:\n"
+            f"\t - Energy: {self.energy}\n"
+            f"\t - Sum of intensity coefficients: {self.total_coeffs_intensity}\n"
+            f"\t - Number of modes: {self.N_modes}\n"
+            f"\t - Intensity coefficients:\n{self.coeffs_intensity}\n"
+            f"\t - Phase coefficients:\n{self.coeffs_phases}\n"
+            f"\t - Orientation coefficients:\n{self.orient_coeffs}\n"
+        )
+
+
 
 if __name__ == "__main__":
     grid = Grid(pixel_size=0.5e-6)
