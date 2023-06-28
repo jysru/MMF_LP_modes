@@ -9,7 +9,7 @@ from mmfsim.fiber import GrinFiber, StepIndexFiber
 
 lru_cache_default_size = 1024
 
-# @lru_cache(maxsize=lru_cache_default_size)
+
 class GrinLPMode():
 
     def __init__(self, n: int, m: int, theta0: float = 0) -> None:
@@ -21,7 +21,7 @@ class GrinLPMode():
         self._y = None
         self._fields = None
 
-    # @lru_cache(maxsize=lru_cache_default_size)
+    @lru_cache(maxsize=lru_cache_default_size)
     def compute(self, fiber: GrinFiber, grid: Grid):
         self._radius = fiber.radius
         self._x = grid.x
@@ -98,13 +98,12 @@ class GrinLPMode():
         plt.colorbar(pl1, ax=axs[1])
 
 
-# @lru_cache(maxsize=lru_cache_default_size)
 class StepIndexLPMode(GrinLPMode):
 
     def __init__(self, n: int, m: int, theta0: float = 0) -> None:
         super().__init__(n, m, theta0)
 
-    # @lru_cache(maxsize=lru_cache_default_size)
+    @lru_cache(maxsize=lru_cache_default_size)
     def compute(self, fiber: StepIndexFiber, grid: Grid):
         """ Computed from equations described here:
             https://www.wavefrontshaping.net/post/id/2
