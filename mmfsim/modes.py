@@ -84,8 +84,8 @@ class GrinLPMode():
         circle2 = plt.Circle((-self._centers[0], -self._centers[1]), r, fill=False, edgecolor='k', linestyle='--')
 
         fig, axs = plt.subplots(1, 2, figsize=(12,4))
-        pl0 = axs[0].imshow(self._fields[:,:,0], extent=extent, cmap=cmap)
-        pl1 = axs[1].imshow(self._fields[:,:,1], extent=extent, cmap=cmap)
+        pl0 = axs[0].imshow(self._fields[:,:,0], extent=extent, cmap=cmap, vmax=np.max(np.abs(self._fields)), vmin=-np.max(np.abs(self._fields)))
+        pl1 = axs[1].imshow(self._fields[:,:,1], extent=extent, cmap=cmap, vmax=np.max(np.abs(self._fields)), vmin=-np.max(np.abs(self._fields)))
         axs[0].add_patch(circle1)
         axs[1].add_patch(circle2)
         axs[0].set_xlabel("x [um]")
