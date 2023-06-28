@@ -253,6 +253,21 @@ class StepIndexFiber(GrinFiber):
     def _N_modes(self):
         return np.shape(self._neff_hnm)[0]
 
+    def __str__(self):
+        return (
+        f"{__class__.__name__} instance with:\n"
+        f"  - Radius: {self.radius * 1e6} um\n"
+        f"  - Core index: {self.n1}\n"
+        f"  - Cladding index: {self.n2}\n"
+        f"  - Wavelength: {self.wavelength * 1e9} nm\n"
+        f"  - Numerical aperture: {self._NA:.3f}\n"
+        f"  - Number of guided LP modes: {self._N_modes}\n"
+        f"  - Number of guided LP modes (counting degenerates): {self._N_modes_degen}\n"
+        f"  - First 10 LP_n,m modes characteristics:\n"
+        f"  n_eff      h          n          m\n"
+        f"{self._neff_hnm[:10]}"
+        )
+
 
 if __name__ == "__main__":
     fiber = GrinFiber()
