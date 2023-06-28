@@ -69,3 +69,34 @@ def square_random_toeplitz(n, norm_intens: bool = True, complex: bool = False, d
     return matrix
 
 
+def banana_random_toeplitz(n, norm_intens: bool = True, complex: bool = False, narrow_width: float = 1, wide_width: float = None):
+    matrix = np.zeros((n,n), dtype=np.complex128)
+    vec = np.random.rand(n)
+
+    if wide_width is None:
+        wide_width = n
+
+    widths = np.linspace(narrow_width, wide_width, round(n/2))
+
+
+    for i in range(n):
+        matrix[i, :] = np.roll(vec, i-1)
+    
+    matrix = np.triu(matrix) + np.transpose(np.triu(matrix, k=1))
+    
+
+    # vec *= np.exp( -np.square(np.arange(0, n)) / (2 * np.square(decay_width)) )
+
+    # if norm_intens:
+    #     vec = np.sqrt(vec / np.sum(vec))
+    # matrix = linalg.toeplitz(vec, vec)
+
+    # if complex:
+    #     phi = 2 * np.pi * np.random.rand(n, n)
+    #     if n > 1:
+    #         triu_nodiag = np.triu(phi, k=1)
+    #         triu = np.triu(phi)
+    #         phi = np.angle(np.exp(1j * (triu - triu_nodiag.T)))
+    #     matrix = matrix * np.exp(1j * phi)
+
+    return matrix
