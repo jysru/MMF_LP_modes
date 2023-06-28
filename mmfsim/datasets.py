@@ -7,12 +7,12 @@ import matplotlib.pyplot as plt
 import h5py
 
 from mmfsim.grid import Grid
-from mmfsim.fiber import GrinFiber
-from mmfsim.modes import GrinLPMode
-from mmfsim.speckle import GrinSpeckle, DegenGrinSpeckle
+from mmfsim.fiber import GrinFiber, StepIndexFiber
+from mmfsim.modes import GrinLPMode, StepIndexLPMode
+from mmfsim.speckle import GrinSpeckle, DegenGrinSpeckle, StepIndexSpeckle, DegenStepIndexSpeckle
 from mmfsim.beams import GaussianBeam
 from mmfsim.devices import MockDeformableMirror
-from mmfsim.coupling import GrinFiberCoupler, GrinFiberDegenCoupler
+from mmfsim.coupling import GrinFiberCoupler, GrinFiberDegenCoupler, StepIndexFiberCoupler, StepIndexFiberDegenCoupler
 from mmfsim.transforms import fresnel_transform, fourier_transform
 
 default_nprocs = multiprocessing.cpu_count()
@@ -504,6 +504,64 @@ class SimulatedGrinSpeckleOutputDataset:
     
     def __getitem__(self, idx):
         return self.intensities[:, :, idx]
+
+
+class SimulatedStepIndexSpeckleOutputDataset(SimulatedGrinSpeckleOutputDataset):
+    """Coupling from modal decomposition on Step Index fiber LP modes, then propagation using a random mode coupling matrix
+    
+       Can use either degenerated modes coupling or non-degenerated mode couplings:
+            - With degenerated mode-coupling (default), the system has a an existing transfer matrix since the degenerated mode basis orientation is fixed.
+            - With non-degenerated mode-coupling, the system has no existing transfer matrix. The reason is that the degenerated mode basis
+              orientation is uncontrolled and might change between each modal decompostion.
+    """
+
+    def __init__(self, fiber: StepIndexFiber, grid: Grid, length: int = 10, N_modes: int = 55, noise_std: float = 0.0, degen: bool = True) -> None:
+        super().__init__(fiber=fiber, grid=grid, length=length, N_modes=N_modes, noise_std=noise_std, degen=degen)
+
+    def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
+        """Computes dataset from random phases applied to partition and their associated fiber output complex field.
+
+           It is slow since the mode decomposition and recomposition is computed for each phase map.
+           Use compute_from_transfer_matrix method for a much faster version that provides the same result.
+        """
+
+        self._phase_dims = phases_dim
+        self._phase_maps = np.zeros(shape=(phases_dim + (self.length,)))
+        self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+        self._input_fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (self.length,)), dtype=np.complex128)
+
+        dm = MockDeformableMirror(pixel_size=100e-6, pixel_numbers=self._grid.pixel_numbers)
+        dm_grid = Grid(pixel_size=dm.pixel_size, pixel_numbers=dm.pixel_numbers)
+        beam = GaussianBeam(dm_grid)
+        beam.compute(width=beam_width)
+        beam.normalize_by_energy()
+        dm.apply_amplitude_map(beam.amplitude)
+
+        for i in range(self.length):
+            phase_map = -np.pi + 2*np.pi*np.random.rand(*phases_dim)
+            dm.apply_phase_map(phase_map)
+            dm.reduce_by(magnification)
+            beam.grid.reduce_by(magnification)
+            beam.field = dm._field_matrix
+
+            if i==0:
+                self._compute_transfer_matrix(dm, beam.grid)
+
+            if self._degenerated:
+                coupled_in = StepIndexFiberDegenCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
+            else:
+                coupled_in = StepIndexFiberCoupler(beam.field, beam.grid, fiber=self._fiber, N_modes=self._N_modes)
+            propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
+
+            self._input_fields[:,:,i] = dm._field_matrix
+            self._phase_maps[:,:,i] = phase_map
+            self._fields[:,:,i] = propagated_field
+
+            dm.magnify_by(magnification)
+            beam.grid.magnify_by(magnification)
+            if verbose:
+                print(f"Computed couple {i+1}/{self.length}")
+            self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
 
 
 if __name__ == "__main__":
