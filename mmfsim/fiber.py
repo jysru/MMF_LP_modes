@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import scipy.special as sp
+from scipy.optimize import root
 
 from mmfsim import matrix as matproc
 from mmfsim.plots import complex_image
@@ -153,6 +155,79 @@ class StepIndexFiber(GrinFiber):
     
     def __init__(self, radius: float = 6.5e-6, wavelength: float = 1064e-9, n1: float = 1.465, n2: float = 1.445) -> None:
         super().__init__(radius, wavelength, n1, n2)
+
+    def _compute_modes_constants(self, froot_tol=1e-9) -> None:
+        modes = self._solve_dispersion_equation(tol=froot_tol)
+        modes = self._sort_solutions(modes)
+        self._neff_hnm = self._compute_neff_hnm_array(modes)
+        self._prop_constants = self._compute_prop_constants_array(modes)
+
+    def _solve_dispersion_equation(self, tol=1e-9) -> dict:
+        v, lbda = self._V, self.wavelength
+        n, roots = 0, [0]
+        modes = {'beta': [], 'u': [], 'w': [], 'n': [], 'm': [], 'number': 0}
+        interval = np.arange(np.spacing(10), v - np.spacing(10), v * 1e-4)
+
+        while len(roots):
+            def root_func(u):
+                w = np.sqrt(v**2 - u**2)
+                return sp.jv(n, u) / (u * sp.jv(n - 1, u)) + sp.kn(n, w) / (w * sp.kn(n - 1, w))
+
+            guesses = np.argwhere(np.abs(np.diff(np.sign(root_func(interval)))))
+            froot = lambda x0: root(root_func, x0, tol=tol)
+            sols = map(froot, interval[guesses])
+            roots = [s.x for s in sols if s.success]
+
+            # Remove solution outside the valid interval, round the solutions and remove duplicates
+            roots = np.unique(
+                [np.round(r / tol) * tol for r in roots if (r > 0 and r < v)]
+            ).tolist()
+            roots_num = len(roots)
+
+            if roots_num:
+                modes['beta'] = modes['beta'] + [np.sqrt(np.square(2 * np.pi / lbda * self.n1) - np.square(r / self.radius)) for r in roots]
+                modes['u'] = modes['u'] + roots
+                modes['w'] = modes['w'] + [np.sqrt(np.square(v) - np.square(r)) for r in roots]
+                modes['number'] += roots_num
+                modes['n'] = modes['n'] + [n] * roots_num
+                modes['m'] = modes['m'] + [x + 1 for x in range(roots_num)]
+            n += 1
+        return modes
+
+    def _sort_solutions(self, modes: dict) -> dict:
+        sorted_idx = np.flip(np.argsort(modes['beta']))
+        modes['beta'] = np.array(modes['beta'])[sorted_idx]
+        modes['n_eff'] = modes['beta'] * self.wavelength / (2 * np.pi)
+        modes['u'] = np.array(modes['u'])[sorted_idx]
+        modes['w'] = np.array(modes['w'])[sorted_idx]
+        modes['n'] = np.array(modes['n'])[sorted_idx]
+        modes['m'] = np.array(modes['m'])[sorted_idx]
+        return modes
+
+    def _compute_neff_hnm_array(self, modes: dict) -> np.array:
+        storage = np.zeros(shape=(modes['number'], 4), dtype='float') # Columns with n_eff, h, n, m
+        for i in range(modes['number']):
+            n, m = modes['n'][i], modes['m'][i]
+            h = self._h_vs_nm(n, m)
+            n_eff = modes['n_eff'][i]
+            storage[i, :] = np.array([n_eff, h, n, m])
+        return storage
+
+    def _compute_prop_constants_array(self, modes: dict) -> np.array:
+        storage = np.zeros(shape=(modes['number'], 6), dtype='float') # Columns with beta, n_eff, n, m, u, w
+        for i in range(modes['number']):
+            beta, n_eff = modes['beta'][i], modes['n_eff'][i]
+            n, m = modes['n'][i], modes['m'][i]
+            u, w = modes['u'][i], modes['w'][i]
+            storage[i, :] = np.array([beta, n_eff, n, m, u, w])
+        return storage
+
+    def _h_vs_nm(self, n, m):
+        return 2 * n + m - 1
+
+    @property
+    def _N_modes_theo(self):
+        return np.floor(np.square(self._V) / 8).astype(int)
 
     @property
     def _N_modes(self):
