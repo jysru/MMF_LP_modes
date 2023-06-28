@@ -1,4 +1,5 @@
 from functools import lru_cache
+import warnings
 import numpy as np
 import scipy.special as sp
 import matplotlib.pyplot as plt
@@ -114,31 +115,35 @@ class StepIndexLPMode(GrinLPMode):
         self._centers = grid.offsets
         self._core = grid.R <= self._radius
         self._clad = grid.R > self._radius
+        self._fields = np.zeros(shape=(len(grid.x), len(grid.y), 2))
 
         # Get u and w from fiber propagation constants array for the selected n and m
         n_idx = np.argwhere(fiber._prop_constants[:, 2] == self.n)
         m_idx = np.argwhere(fiber._prop_constants[:, 3] == self.m)
         idx = np.intersect1d(n_idx, m_idx)
-        u, w = fiber._prop_constants[idx, 4], fiber._prop_constants[idx, 5]
 
-        # Compute the transverse field
-        E_core = sp.jv(self.n, u / self._radius * grid.R) / sp.jv(self.n, u) * self._core
-        E_clad = sp.kn(self.n, w / self._radius * grid.R) / sp.kn(self.n, w) * self._clad
-        Et = E_core + E_clad
-
-        self._fields = np.zeros(shape=(len(grid.x), len(grid.y), 2))
-        if self.n == 0:
-            idx = np.unravel_index(np.argmax(np.abs(Et)), shape=Et.shape)
-            if Et[idx[0], idx[1]] < 0:
-                Et *= -1
-            self._fields[:,:,0] = Et
-            self._fields[:,:,1] = Et
+        if not idx.size:
+            warnings.warn("Mode is not guided. Field is an array of zeros.", RuntimeWarning)
         else:
-            self._fields[:,:,0] = Et * np.cos(self.n * grid.A + self.theta0)
-            self._fields[:,:,1] = Et * np.cos(self.n * grid.A + self.theta0 + np.pi/2)
+            u, w = fiber._prop_constants[idx, 4], fiber._prop_constants[idx, 5]
 
-        # Normalize fields by energy
-        self._fields = self._fields / np.sqrt(self.energies)
+            # Compute the transverse field
+            E_core = sp.jv(self.n, u / self._radius * grid.R) / sp.jv(self.n, u) * self._core
+            E_clad = sp.kn(self.n, w / self._radius * grid.R) / sp.kn(self.n, w) * self._clad
+            Et = E_core + E_clad
+
+            if not self.is_degenerated:
+                idx = np.unravel_index(np.argmax(np.abs(Et)), shape=Et.shape)
+                if Et[idx[0], idx[1]] < 0:
+                    Et *= -1
+                self._fields[:,:,0] = Et
+                self._fields[:,:,1] = Et
+            else:
+                self._fields[:,:,0] = Et * np.cos(self.n * grid.A + self.theta0)
+                self._fields[:,:,1] = Et * np.cos(self.n * grid.A + self.theta0 + np.pi/2)
+
+            # Normalize fields by energy
+            self._fields = self._fields / np.sqrt(self.energies)
 
 if __name__ == "__main__":
     # grid = Grid(pixel_size=0.5e-6)
