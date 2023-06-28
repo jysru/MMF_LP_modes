@@ -112,26 +112,33 @@ class StepIndexLPMode(GrinLPMode):
         self._x = grid.x
         self._y = grid.y
         self._centers = grid.offsets
+        self._core = grid.R <= self._radius
+        self._clad = grid.R > self._radius
 
-        # To be computed in StepIndexFiber class
-        beta = 1.4639074 * fiber._k0
+        # Get u and w from fiber propagation constants array for the selected n and m
+        n_idx = np.argwhere(fiber._prop_constants[:, 2] == self.n)
+        m_idx = np.argwhere(fiber._prop_constants[:, 3] == self.m)
+        idx = np.intersect1d(n_idx, m_idx)
+        u, w = fiber._prop_constants[idx, 4], fiber._prop_constants[idx, 5]
 
-        u = fiber.radius * np.sqrt(np.square(fiber._k0 * fiber.n1) - np.square(beta))
-        w = fiber.radius * np.sqrt(np.square(beta) - np.square(fiber._k0 * fiber.n2))
-        
-        E_core = beta * fiber.radius / u * sp.jv(self.m-1, u / fiber.radius * grid.R)
-        E_clad = sp.jv(self.m, u) / sp.kv(self.m, w) * sp.kv(self.m, w / fiber.radius * grid.R)
-
-        E_radius = np.zeros(shape=(len(grid.x), len(grid.y)))
-        mask = (grid.R <= fiber.radius)
-        E_radius[mask] = E_core[mask]
-        E_radius[np.logical_not(mask)] = E_clad[np.logical_not(mask)]
+        # Compute the transverse field
+        E_core = sp.jv(self.n, u / self._radius * grid.R) / sp.jv(self.n, u) * self._core
+        E_clad = sp.kn(self.n, w / self._radius * grid.R) / sp.kn(self.n, w) * self._clad
+        Et = E_core + E_clad
 
         self._fields = np.zeros(shape=(len(grid.x), len(grid.y), 2))
-        self._fields[:,:,0] = E_radius * np.cos(self.n * grid.A + self.theta0)
-        self._fields[:,:,1] = E_radius * np.cos(self.n * grid.A + self.theta0 + np.pi/2)
-        self._fields = self._fields / np.sqrt(self.energies)
+        if self.n == 0:
+            idx = np.unravel_index(np.argmax(np.abs(Et)), shape=Et.shape)
+            if Et[idx[0], idx[1]] < 0:
+                Et *= -1
+            self._fields[:,:,0] = Et
+            self._fields[:,:,1] = Et
+        else:
+            self._fields[:,:,0] = Et * np.cos(self.n * grid.A + self.theta0)
+            self._fields[:,:,1] = Et * np.cos(self.n * grid.A + self.theta0 + np.pi/2)
 
+        # Normalize fields by energy
+        self._fields = self._fields / np.sqrt(self.energies)
 
 if __name__ == "__main__":
     # grid = Grid(pixel_size=0.5e-6)
