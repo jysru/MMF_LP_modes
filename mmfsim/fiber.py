@@ -1,3 +1,4 @@
+import warnings
 import numpy as np
 import matplotlib.pyplot as plt
 import scipy.special as sp
@@ -161,6 +162,7 @@ class StepIndexFiber(GrinFiber):
         modes = self._sort_solutions(modes)
         self._neff_hnm = self._compute_neff_hnm_array(modes)
         self._prop_constants = self._compute_prop_constants_array(modes)
+        self._check_propagation_constants()
 
     def _solve_dispersion_equation(self, tol=1e-9) -> dict:
         v, lbda = self._V, self.wavelength
@@ -222,6 +224,24 @@ class StepIndexFiber(GrinFiber):
             storage[i, :] = np.array([beta, n_eff, n, m, u, w])
         return storage
 
+    def _check_propagation_constants(self):
+        self._check_modes_above_core_index()
+        self._check_modes_below_clad_index()
+
+    def _check_modes_above_core_index(self):
+        idx = np.argwhere(self._prop_constants[:, 1] > self.n1)
+        if idx.size != 0:
+            warnings.warn(f"Found {idx.size} modes with effective index above core index.")
+            self._prop_constants = np.delete(self._prop_constants, idx, axis=0)
+            warnings.warn("Invalid modes have been deleted!")
+    
+    def _check_modes_below_clad_index(self):
+        idx = np.argwhere(self._prop_constants[:, 1] < self.n2)
+        if idx.size != 0:
+            warnings.warn(f"Found {idx.size} modes with effective index below clad index.")
+            self._prop_constants = np.delete(self._prop_constants, idx, axis=0)
+            warnings.warn("Invalid modes have been deleted!")
+
     def _h_vs_nm(self, n, m):
         return 2 * n + m - 1
 
@@ -231,7 +251,7 @@ class StepIndexFiber(GrinFiber):
 
     @property
     def _N_modes(self):
-        return np.floor(np.square(self._V) / 8).astype(int)
+        return np.shape(self._neff_hnm)[0]
 
 
 if __name__ == "__main__":
