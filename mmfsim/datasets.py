@@ -253,6 +253,8 @@ class SimulatedGrinSpeckleOutputDataset:
         self._degenerated = degen
         self._transfer_matrix = None
         self._transf = None
+        self._low_energy_weights_indexes = None
+
 
     def compute(self, phases_dim: tuple[int, int] = (6,6), beam_width: float = 5100e-6, magnification: float = 200, verbose: bool = True):
         """Computes dataset from random phases applied to partition and their associated fiber output complex field.
@@ -333,6 +335,8 @@ class SimulatedGrinSpeckleOutputDataset:
 
             x = np.sqrt(self._normalized_energy_on_macropixels) * np.exp(1j * phase_map)
             x = x.flatten()
+            if len(self._low_energy_weights_indexes) > 0:
+                x = np.delete(x, self._low_energy_weights_indexes)
             y = (tm @ x).reshape(self._grid.pixel_numbers)
 
             self._phase_maps[:,:,i] = phase_map
@@ -375,6 +379,8 @@ class SimulatedGrinSpeckleOutputDataset:
 
     def _compute_transfer_matrix(self, dm: MockDeformableMirror, grid: Grid):
         dm.compute_transfer_matrix_amplitudes()
+        self._low_energy_weights_indexes = dm._low_energy_weights_indexes
+
         self._transfer_matrix = np.zeros(shape=(dm._transfer_matrix_amplitudes.shape[0], grid.pixel_numbers[0], grid.pixel_numbers[1]), dtype=np.complex128)
         for i in range(dm._transfer_matrix_amplitudes.shape[0]):
             if self._degenerated:
@@ -383,6 +389,7 @@ class SimulatedGrinSpeckleOutputDataset:
                 coupled_in = GrinFiberCoupler(dm._transfer_matrix_amplitudes[i, ...], grid, fiber=self._fiber, N_modes=self._N_modes)
             propagated_field = coupled_in.propagate(matrix=self._coupling_matrix)
             self._transfer_matrix[i, :, :] = propagated_field
+            print(f"Computed TM row {i+1}/{dm._transfer_matrix_amplitudes.shape[0]}")
 
     @property
     def reshaped_transfer_matrix(self):
