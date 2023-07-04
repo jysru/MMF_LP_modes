@@ -73,17 +73,17 @@ class PowerPhase(Phase):
     def __init__(self, grid: Grid) -> None:
         super().__init__(grid)
         self.offsets = None
-        self.power = None
+        self.order = None
 
-    def compute(self, coeffs: list[float], power: float, centers: list[int] = [0, 0]):
+    def compute(self, coeffs: list[float], order: float, centers: list[int] = [0, 0]):
         self._add_2D_offsets(centers)
-        self.power = power
+        self.order = order
         self.add(self._compute_gradient(coeffs))
 
     def _compute_gradient(self, coeffs):
         return (
-            2 * np.pi * np.power(self.grid.X / coeffs[0], self.power)
-            + 2 * np.pi * np.power(self.grid.Y / coeffs[1], self.power)
+            2 * np.pi * np.power(self.grid.X / coeffs[0], self.order)
+            + 2 * np.pi * np.power(self.grid.Y / coeffs[1], self.order)
         )
 
     def __str__(self) -> str:
@@ -97,7 +97,7 @@ class LinearPhase(PowerPhase):
 
     def __init__(self, grid: Grid) -> None:
         super().__init__(grid)
-        self.power = 1
+        self.order = 1
         self.offsets = None
 
     def compute(self, coeffs: list[float], centers: list[int] = [0, 0]):
@@ -115,7 +115,7 @@ class QuadraticPhase(PowerPhase):
 
     def __init__(self, grid: Grid) -> None:
         super().__init__(grid)
-        self.power = 2
+        self.order = 2
         self.offsets = None
 
     def compute(self, coeffs: list[float], centers: list[int] = [0, 0]):
