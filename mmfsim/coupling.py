@@ -2,9 +2,9 @@ import numpy as np
 import matplotlib.pyplot as plt
 
 from mmfsim.grid import Grid
-from mmfsim.fiber import GrinFiber
-from mmfsim.modes import GrinLPMode
-from mmfsim.speckle import GrinSpeckle, DegenGrinSpeckle
+from mmfsim.fiber import GrinFiber, StepIndexFiber
+from mmfsim.modes import GrinLPMode, StepIndexLPMode
+from mmfsim.speckle import GrinSpeckle, DegenGrinSpeckle, StepIndexSpeckle, DegenStepIndexSpeckle
 from mmfsim.devices import MockDeformableMirror
 from mmfsim.plots import complex_image
 import mmfsim.beams as beams
@@ -72,6 +72,18 @@ class GrinFiberDegenCoupler(DegenGrinSpeckle):
             f"{np.square(np.abs(self.modes_coeffs))}"
         )
     
+
+class StepIndexFiberCoupler(StepIndexSpeckle):
+
+    def __init__(self, field: np.ndarray, grid: Grid, fiber: StepIndexFiber = StepIndexFiber(), N_modes: int = 10, noise_std: float = 0) -> None:
+        super().__init__(fiber, grid, N_modes, noise_std)
+
+
+class StepIndexFiberDegenCoupler(DegenStepIndexSpeckle):
+
+    def __init__(self, field: np.ndarray, grid: Grid, fiber: StepIndexFiber = StepIndexFiber(), N_modes: int = 10, noise_std: float = 0) -> None:
+        super().__init__(fiber, grid, N_modes, noise_std)
+
 
 if __name__ == "__main__":
 

@@ -177,6 +177,7 @@ class MockDeformableMirror(Grid):
         self._energy_integrated_on_macropixels = None
         self._idxs_to_keep = None
         self._transfer_matrix_amplitudes = None
+        self._low_energy_weights_indexes = None
 
     def _init_field_matrix(self) -> np.ndarray:
         moduli = np.ones(shape=tuple(self.pixel_numbers))
@@ -257,7 +258,7 @@ class MockDeformableMirror(Grid):
                 mpx_idxs = np.intersect1d(self._partitions_idxs[mpx_row, mpx_col, :], self._idxs_to_keep)
                 self._energy_on_macropixels[mpx_row, mpx_col] = np.sum(np.square(np.abs(self._field_matrix.flatten()[mpx_idxs])))
         
-    def compute_transfer_matrix_amplitudes(self):
+    def compute_transfer_matrix_amplitudes(self, trsh: float = 0.0001):
         self._transfer_matrix_amplitudes = np.empty(shape=(*self._partition_size, *self._field_matrix.shape))
         for mpx_row in range(self._partition_size[0]):
             for mpx_col in range(self._partition_size[1]):
@@ -266,6 +267,17 @@ class MockDeformableMirror(Grid):
                 amplitudes[mpx_row_idxs, mpx_col_idxs] = np.abs(self._field_matrix[mpx_row_idxs, mpx_col_idxs])
                 self._transfer_matrix_amplitudes[mpx_row, mpx_col, :, :] = amplitudes
         self._transfer_matrix_amplitudes = np.reshape(self._transfer_matrix_amplitudes, (np.prod(self._partition_size), *self._field_matrix.shape))
+        self._filter_transfer_matrix_amplitudes(trsh=trsh)
+
+    def _filter_transfer_matrix_amplitudes(self, trsh: float = 0.0001):
+        sums_on_mpxs = np.sum(self._transfer_matrix_amplitudes, axis=(1,2))
+        self._low_energy_weights_indexes = np.argwhere(sums_on_mpxs < trsh)
+
+        if len(self._low_energy_weights_indexes) > 0:
+            print(f"Found {len(self._low_energy_weights_indexes)} input variable weights below threshold {trsh} to delete.")
+            self._transfer_matrix_amplitudes = np.delete(self._transfer_matrix_amplitudes, self._low_energy_weights_indexes, axis=0)
+            print(f"Successfully deleted low weight input variables.")
+
 
     @property
     def field(self):
