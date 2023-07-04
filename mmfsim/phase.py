@@ -42,9 +42,11 @@ class Phase(ABC):
     
     def __add__(self, other):
         self.phase = np.angle(np.exp(1j * (self.phase + other.phase)))
+        return self
 
     def __sub__(self, other):
         self.phase = np.angle(np.exp(1j * (self.phase - other.phase)))
+        return self
     
 
 class FlatPhase(Phase):
