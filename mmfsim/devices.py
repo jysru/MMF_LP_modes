@@ -274,9 +274,9 @@ class MockDeformableMirror(Grid):
         self._transfer_matrix_amplitudes = np.reshape(self._transfer_matrix_amplitudes, (np.prod(self._partition_size), *self._field_matrix.shape))
         self._filter_transfer_matrix_amplitudes(trsh=trsh)
 
-    def _filter_transfer_matrix_amplitudes(self, trsh: float = 0.0001):
+    def _filter_transfer_matrix_amplitudes(self, trsh: float = 0.001):
         sums_on_mpxs = np.sum(self._transfer_matrix_amplitudes, axis=(1,2))
-        self._low_energy_weights_indexes = np.argwhere(sums_on_mpxs < trsh)
+        self._low_energy_weights_indexes = np.argwhere(sums_on_mpxs / np.max(sums_on_mpxs) < trsh)
 
         if len(self._low_energy_weights_indexes) > 0:
             print(f"Found {len(self._low_energy_weights_indexes)} input variable weights below threshold {trsh} to delete.")
