@@ -131,18 +131,20 @@ class GrinSpeckle():
     def coeffs_phases(self):
         return np.angle(self.modes_coeffs)
     
-    def plot(self, cmap: str = 'gray', complex: bool = False, complex_hsv: bool = False):
+    def plot(self, cmap: str = 'gray', complex: bool = False, complex_hsv: bool = False, display_core: bool = True):
         r = self.fiber.radius * 1e6
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * 1e6
-        circle1 = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
-        circle2 = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
+        if display_core:
+            circle1 = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
+            circle2 = plt.Circle((-self.grid.offsets[0], -self.grid.offsets[1]), r, fill=False, edgecolor='w', linestyle='--')
 
         if complex:
             if complex_hsv:
                 fig = plt.figure()
                 ax = plt.gca()
                 pl = plt.imshow(complex_image(self.field), extent=extent)
-                ax.add_patch(circle1)
+                if display_core:
+                    ax.add_patch(circle1)
                 ax.set_xlabel("x [um]")
                 ax.set_ylabel("x [um]")
                 ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
@@ -151,8 +153,9 @@ class GrinSpeckle():
                 fig, axs = plt.subplots(1, 2, figsize=(13,4))
                 pl0 = axs[0].imshow(self.intensity, extent=extent, cmap=cmap)
                 pl1 = axs[1].imshow(self.phase, extent=extent, cmap="twilight")
-                axs[0].add_patch(circle1)
-                axs[1].add_patch(circle2)
+                if display_core:
+                    axs[0].add_patch(circle1)
+                    axs[1].add_patch(circle2)
                 axs[0].set_xlabel("x [um]")
                 axs[1].set_xlabel("x [um]")
                 axs[0].set_ylabel("y [um]")
@@ -166,7 +169,8 @@ class GrinSpeckle():
             fig = plt.figure()
             ax = plt.gca()
             pl = plt.imshow(self.intensity, cmap=cmap, extent=extent)
-            ax.add_patch(circle1)
+            if display_core:
+                ax.add_patch(circle1)
             ax.set_xlabel("x [um]")
             ax.set_ylabel("x [um]")
             ax.set_title(f"GRIN fiber speckle ({self.N_modes} modes)")
