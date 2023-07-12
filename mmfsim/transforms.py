@@ -33,7 +33,7 @@ def fourier_transform(field, pad: float = None):
         init_shape = field.shape
         field = pad_img(field, pad)
         
-    ft = np.fft.fftshift(np.fft.fft2(field))
+    ft = np.fft.fftshift(np.fft.fft2(np.fft.fftshift(field)))
     ft = ft / np.sqrt(ft.size)
     return crop_img(ft, init_shape) if pad is not None else ft
 
