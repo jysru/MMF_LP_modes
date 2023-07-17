@@ -263,7 +263,7 @@ class MockDeformableMirror(Grid):
                 mpx_idxs = np.intersect1d(self._partitions_idxs[mpx_row, mpx_col, :], self._idxs_to_keep)
                 self._energy_on_macropixels[mpx_row, mpx_col] = np.sum(np.square(np.abs(self._field_matrix.flatten()[mpx_idxs])))
         
-    def compute_transfer_matrix_amplitudes(self, trsh: float = 0.0001):
+    def compute_transfer_matrix_amplitudes(self, trsh: float = 0.001):
         self._transfer_matrix_amplitudes = np.empty(shape=(*self._partition_size, *self._field_matrix.shape))
         for mpx_row in range(self._partition_size[0]):
             for mpx_col in range(self._partition_size[1]):
