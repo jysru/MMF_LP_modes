@@ -29,10 +29,14 @@ class GrinSpeckle():
             self._modes_random_coeffs(oriented=oriented)
 
         for i in range(self.N_modes):
-            n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
-            mode = GrinLPMode(n, m)
-            mode.compute(self.fiber, self.grid)
-            fields1[:,:,i], fields2[:,:,i] = mode._fields[:,:,0], mode._fields[:,:,1]
+            if self.fiber.stored_modes_fields:
+                mode_fields = self.fiber._modes[:, :, :, i]
+                fields1[:,:,i], fields2[:,:,i] = mode_fields[:,:,0], mode_fields[:,:,1]
+            else:
+                n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
+                mode = GrinLPMode(n, m)
+                mode.compute(self.fiber, self.grid)
+                fields1[:,:,i], fields2[:,:,i] = mode._fields[:,:,0], mode._fields[:,:,1]
 
         field = 0
         for i in range(self.N_modes):
@@ -65,10 +69,14 @@ class GrinSpeckle():
         orient_coeffs = np.zeros(shape=(N_modes))
 
         for i in range(N_modes):
-            n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
-            mode = GrinLPMode(n, m)
-            mode.compute(self.fiber, self.grid)
-            mode0, mode90 = mode._fields[:,:,0], mode._fields[:,:,1]
+            if self.fiber.stored_modes_fields:
+                mode_fields = self.fiber._modes[:, :, :, i]
+                mode0, mode90 = mode_fields[:, :, 0], mode_fields[:, :, 1]
+            else:
+                n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
+                mode = GrinLPMode(n, m)
+                mode.compute(self.fiber, self.grid)
+                mode0, mode90 = mode._fields[:,:,0], mode._fields[:,:,1]
             
             if mode.is_centrosymmetric: # Centro-symmetric mode
                 Cp = GrinSpeckle.power_overlap_integral(self.field, mode0)
@@ -241,16 +249,20 @@ class DegenGrinSpeckle(GrinSpeckle):
         k, i = 0, 0
         while k < self.N_modes:
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
-            mode = GrinLPMode(n, m)
-            mode.compute(self.fiber, self.grid)
+            if self.fiber.stored_modes_fields:
+                mode_fields = self.fiber._modes[:, :, :, i]
+            else:
+                mode = GrinLPMode(n, m)
+                mode.compute(self.fiber, self.grid)
+                mode_fields = mode._fields
 
-            if mode.is_degenerated:
+            if n > 0: # Mode is degenerated
                 try:
-                    fields[:, :, k] = mode._fields[:, :, 0]
+                    fields[:, :, k] = mode_fields[:, :, 0]
                 except IndexError:
                     break
                 try:
-                    fields[:, :, k + 1] = mode._fields[:, :, 1]
+                    fields[:, :, k + 1] = mode_fields[:, :, 1]
                 except IndexError:
                     break
                 k += 2
@@ -287,26 +299,31 @@ class DegenGrinSpeckle(GrinSpeckle):
 
         while k < N_modes:
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
-            mode = GrinLPMode(n, m)
-            mode.compute(self.fiber, self.grid)
-            if mode.is_degenerated:
+            if self.fiber.stored_modes_fields:
+                mode_fields = self.fiber._modes[:, :, :, i]
+            else:
+                mode = GrinLPMode(n, m)
+                mode.compute(self.fiber, self.grid)
+                mode_fields = mode._fields
+
+            if n > 0: # Mode is degenerated
                 try:
-                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 0])
-                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 0])
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode_fields[:, :, 0])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_fields[:, :, 0])
                     modes_coeffs[k] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
                     break
                 try:
-                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 1])
-                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 1])
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode_fields[:, :, 1])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_fields[:, :, 1])
                     modes_coeffs[k + 1] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
                     break
                 k += 2
             else:
                 try:
-                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 0])
-                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 0])
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode_fields[:, :, 0])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_fields[:, :, 0])
                     modes_coeffs[k] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
                     break
@@ -377,10 +394,14 @@ class StepIndexSpeckle(GrinSpeckle):
             self._modes_random_coeffs(oriented=oriented)
 
         for i in range(self.N_modes):
-            n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
-            mode = StepIndexLPMode(n, m)
-            mode.compute(self.fiber, self.grid)
-            fields1[:,:,i], fields2[:,:,i] = mode._fields[:,:,0], mode._fields[:,:,1]
+            if self.fiber.stored_modes_fields:
+                mode_fields = self.fiber._modes[:, :, :, i]
+                fields1[:,:,i], fields2[:,:,i] = mode_fields[:,:,0], mode_fields[:,:,1]
+            else:
+                n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
+                mode = GrinLPMode(n, m)
+                mode.compute(self.fiber, self.grid)
+                fields1[:,:,i], fields2[:,:,i] = mode._fields[:,:,0], mode._fields[:,:,1]
 
         field = 0
         for i in range(self.N_modes):
@@ -422,22 +443,26 @@ class DegenStepIndexSpeckle(DegenGrinSpeckle):
         k, i = 0, 0
         while k < self.N_modes:
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
-            mode = StepIndexLPMode(n, m)
-            mode.compute(self.fiber, self.grid)
+            if self.fiber.stored_modes_fields:
+                mode_fields = self.fiber._modes[:, :, :, i]
+            else:
+                mode = GrinLPMode(n, m)
+                mode.compute(self.fiber, self.grid)
+                mode_fields = mode._fields
 
-            if mode.is_degenerated:
+            if n > 0: # Mode is degenerated
                 try:
-                    fields[:, :, k] = mode._fields[:, :, 0]
+                    fields[:, :, k] = mode_fields[:, :, 0]
                 except IndexError:
                     break
                 try:
-                    fields[:, :, k + 1] = mode._fields[:, :, 1]
+                    fields[:, :, k + 1] = mode_fields[:, :, 1]
                 except IndexError:
                     break
                 k += 2
             else:
                 try:
-                    fields[:, :, k] = mode._fields[:, :, 0]
+                    fields[:, :, k] = mode_fields[:, :, 0]
                 except IndexError:
                     break
                 k += 1
@@ -456,26 +481,31 @@ class DegenStepIndexSpeckle(DegenGrinSpeckle):
 
         while k < N_modes:
             n, m = self.fiber._neff_hnm[i, 2], self.fiber._neff_hnm[i, 3]
-            mode = StepIndexLPMode(n, m)
-            mode.compute(self.fiber, self.grid)
-            if mode.is_degenerated:
+            if self.fiber.stored_modes_fields:
+                mode_fields = self.fiber._modes[:, :, :, i]
+            else:
+                mode = GrinLPMode(n, m)
+                mode.compute(self.fiber, self.grid)
+                mode_fields = mode._fields
+
+            if n > 0: # Mode is degenerated
                 try:
-                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 0])
-                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 0])
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode_fields[:, :, 0])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_fields[:, :, 0])
                     modes_coeffs[k] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
                     break
                 try:
-                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 1])
-                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 1])
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode_fields[:, :, 1])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_fields[:, :, 1])
                     modes_coeffs[k + 1] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
                     break
                 k += 2
             else:
                 try:
-                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode._fields[:, :, 0])
-                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode._fields[:, :, 0])
+                    Cp = GrinSpeckle.power_overlap_integral(self.field, mode_fields[:, :, 0])
+                    phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode_fields[:, :, 0])
                     modes_coeffs[k] = np.sqrt(Cp) * np.exp(1j * phi)
                 except IndexError:
                     break
