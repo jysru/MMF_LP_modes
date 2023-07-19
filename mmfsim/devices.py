@@ -166,9 +166,9 @@ class DeformableMirror(Grid):
 
 class MockDeformableMirror(Grid):
 
-    def __init__(self, pixel_size: float = 1e-6, pixel_numbers: tuple[int, int] = (128, 128), offsets: tuple[float, float] = (0.0, 0.0)) -> None:
+    def __init__(self, pixel_size: float = 1e-6, pixel_numbers: tuple[int, int] = (128, 128), offsets: tuple[float, float] = (0.0, 0.0), diameter: float = None) -> None:
         super().__init__(pixel_size, pixel_numbers, offsets)
-        self._field_matrix = self._init_field_matrix()
+        self._mirror_diameter = diameter if diameter is not None else deformable_mirror_diameter
         self._phase_map = None
         self._partition_size = None
         self._macropixel_size = None
@@ -178,6 +178,7 @@ class MockDeformableMirror(Grid):
         self._idxs_to_keep = None
         self._transfer_matrix_amplitudes = None
         self._low_energy_weights_indexes = None
+        self._field_matrix = self._init_field_matrix()
 
     def _init_field_matrix(self) -> np.ndarray:
         moduli = np.ones(shape=tuple(self.pixel_numbers))
@@ -188,7 +189,7 @@ class MockDeformableMirror(Grid):
 
     def apply_mask(self, matrix: np.ndarray, mask_value: float = 0):
         mask = np.zeros(shape=self.pixel_numbers, dtype=bool)
-        mask[self.R > deformable_mirror_diameter/2] = True
+        mask[self.R > self._mirror_diameter/2] = True
         matrix[mask] = mask_value
         return matrix
 
@@ -220,10 +221,14 @@ class MockDeformableMirror(Grid):
         matrix = np.repeat(partition, self._macropixel_size, axis=0)
         matrix = np.repeat(matrix, self._macropixel_size, axis=1)
         pad_amount = int((self.pixel_numbers[0] - matrix.shape[0]) // 2)
-        return np.pad(matrix, pad_width=pad_amount)
+        matrix = np.pad(matrix, pad_width=pad_amount)
+        if matrix.shape != tuple(self.pixel_numbers):
+            matrix = np.vstack([matrix, np.zeros(shape=(1, matrix.shape[1]))])
+            matrix = np.hstack([matrix, np.zeros(shape=(matrix.shape[0], 1))])
+        return matrix
     
     def _compute_partitions_idxs(self):
-        self._macropixel_size = int(np.ceil(deformable_mirror_diameter / self.pixel_size / self._partition_size[0]))
+        self._macropixel_size = int(np.ceil(self._mirror_diameter / self.pixel_size / self._partition_size[0]))
         offset = int((self.pixel_numbers[0] - self._partition_size[0] * self._macropixel_size) // 2)
 
         # Partitions idxs dimensions: partition size 0, partition size 1, macropixel size, mpx rows idxs, cols idxs
@@ -258,7 +263,7 @@ class MockDeformableMirror(Grid):
                 mpx_idxs = np.intersect1d(self._partitions_idxs[mpx_row, mpx_col, :], self._idxs_to_keep)
                 self._energy_on_macropixels[mpx_row, mpx_col] = np.sum(np.square(np.abs(self._field_matrix.flatten()[mpx_idxs])))
         
-    def compute_transfer_matrix_amplitudes(self, trsh: float = 0.0001):
+    def compute_transfer_matrix_amplitudes(self, trsh: float = 0.001):
         self._transfer_matrix_amplitudes = np.empty(shape=(*self._partition_size, *self._field_matrix.shape))
         for mpx_row in range(self._partition_size[0]):
             for mpx_col in range(self._partition_size[1]):
@@ -269,9 +274,9 @@ class MockDeformableMirror(Grid):
         self._transfer_matrix_amplitudes = np.reshape(self._transfer_matrix_amplitudes, (np.prod(self._partition_size), *self._field_matrix.shape))
         self._filter_transfer_matrix_amplitudes(trsh=trsh)
 
-    def _filter_transfer_matrix_amplitudes(self, trsh: float = 0.0001):
+    def _filter_transfer_matrix_amplitudes(self, trsh: float = 0.001):
         sums_on_mpxs = np.sum(self._transfer_matrix_amplitudes, axis=(1,2))
-        self._low_energy_weights_indexes = np.argwhere(sums_on_mpxs < trsh)
+        self._low_energy_weights_indexes = np.argwhere(sums_on_mpxs / np.max(sums_on_mpxs) < trsh)
 
         if len(self._low_energy_weights_indexes) > 0:
             print(f"Found {len(self._low_energy_weights_indexes)} input variable weights below threshold {trsh} to delete.")
