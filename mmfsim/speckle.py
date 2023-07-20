@@ -268,7 +268,7 @@ class DegenGrinSpeckle(GrinSpeckle):
                 k += 2
             else:
                 try:
-                    fields[:, :, k] = mode._fields[:, :, 0]
+                    fields[:, :, k] = mode_fields[:, :, 0]
                 except IndexError:
                     break
                 k += 1
