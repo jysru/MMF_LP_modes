@@ -293,7 +293,7 @@ class DegenGrinSpeckle(GrinSpeckle):
         self.modes_coeffs = GrinSpeckle._normalize_coeffs(modes_coeffs)
 
     def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):
-        N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
+        self.N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
         modes_coeffs = np.zeros(shape=(self.N_modes), dtype=np.complex64)
         k, i = 0, 0
 
