@@ -32,7 +32,7 @@ class Fiber(ABC):
     def _h_vs_nm(self, n, m):
         return 2 * n + m - 1
     
-    def compute_modes_fields(self, grid: Grid) -> None:
+    def compute_modes_fields(self, grid: Grid, verbose: bool = False) -> None:
         self._grid = grid
         self._modes = np.zeros(shape=(*grid.pixel_numbers, 2, self._N_modes))
         for i in range(self._N_modes):
@@ -40,6 +40,8 @@ class Fiber(ABC):
             mode = self._mode_type(n, m)
             mode.compute(self, self._grid)
             self._modes[:, :, :, i] = mode._fields
+            if verbose:
+                print(f"{i + 1} / {self._N_modes}")
 
     @abstractmethod
     def _compute_modes_constants(self) -> None:
