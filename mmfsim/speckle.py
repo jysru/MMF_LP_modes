@@ -79,7 +79,7 @@ class GrinSpeckle():
                 mode0, mode90 = mode._fields[:,:,0], mode._fields[:,:,1]
 
             if n == 0:
-            #if mode.is_centrosymmetric: # Centro-symmetric mode
+            # if mode.is_centrosymmetric: # Centro-symmetric mode
                 Cp = GrinSpeckle.power_overlap_integral(self.field, mode0)
                 phi = GrinSpeckle.phase_from_overlap_integral(self.field, mode0)
                 modes_coeffs[i] = Cp * np.exp(1j * phi)
@@ -470,7 +470,7 @@ class DegenStepIndexSpeckle(DegenGrinSpeckle):
         self.field = field
 
     def decompose(self, N_modes: int = 10, normalize_coeffs: bool = False):
-        N_modes = self.fiber._N_modes if N_modes > self.fiber._N_modes else N_modes
+        N_modes = self.fiber._N_modes_degen if N_modes > self.fiber._N_modes_degen else N_modes
         modes_coeffs = np.zeros(shape=(self.N_modes), dtype=np.complex64)
         k, i = 0, 0
 

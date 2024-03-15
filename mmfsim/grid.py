@@ -31,6 +31,10 @@ class Grid():
             self.offsets += np.asarray(offsets)
             self._generate_vectors()
 
+    def _set_offsets(self, offsets: tuple[float, float] = None) -> None:
+        self.offsets = np.asarray(offsets)
+        self._generate_vectors()
+
     def magnify_by(self, coeff: float):
         if coeff == 0:
             coeff = 1
