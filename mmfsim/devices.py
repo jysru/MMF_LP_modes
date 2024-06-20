@@ -275,7 +275,7 @@ class MockDeformableMirror(Grid):
         self._filter_transfer_matrix_amplitudes(trsh=trsh)
 
     def _filter_transfer_matrix_amplitudes(self, trsh: float = 0.001):
-        sums_on_mpxs = np.sum(self._transfer_matrix_amplitudes, axis=(1,2))
+        sums_on_mpxs = np.sum(np.square(self._transfer_matrix_amplitudes), axis=(1,2))
         self._low_energy_weights_indexes = np.argwhere(sums_on_mpxs / np.max(sums_on_mpxs) < trsh)
 
         if len(self._low_energy_weights_indexes) > 0:
