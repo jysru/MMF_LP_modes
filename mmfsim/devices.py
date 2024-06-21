@@ -191,6 +191,7 @@ class MockDeformableMirror(Grid):
         mask = np.zeros(shape=self.pixel_numbers, dtype=bool)
         mask[self.R > self._mirror_diameter/2] = True
         matrix[mask] = mask_value
+        # mask = np.ones(shape=self.pixel_numbers, dtype=bool)
         return matrix
 
     def apply_phase_map(self, phase_map):
@@ -228,7 +229,7 @@ class MockDeformableMirror(Grid):
         return matrix
     
     def _compute_partitions_idxs(self):
-        self._macropixel_size = int(np.ceil(self._mirror_diameter / self.pixel_size / self._partition_size[0]))
+        self._macropixel_size = int(np.floor(self._mirror_diameter / self.pixel_size / self._partition_size[0]))
         offset = int((self.pixel_numbers[0] - self._partition_size[0] * self._macropixel_size) // 2)
 
         # Partitions idxs dimensions: partition size 0, partition size 1, macropixel size, mpx rows idxs, cols idxs
