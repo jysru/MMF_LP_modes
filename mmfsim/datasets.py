@@ -16,6 +16,8 @@ from mmfsim.devices import MockDeformableMirror
 from mmfsim.coupling import GrinFiberCoupler, GrinFiberDegenCoupler, StepIndexFiberCoupler, StepIndexFiberDegenCoupler
 from mmfsim.transforms import fresnel_transform, fourier_transform
 
+from waveoptics.utils.utils import slice_elements_by_batch
+
 default_nprocs = multiprocessing.cpu_count()
 
 
@@ -415,7 +417,10 @@ class SimulatedSpeckleOutputDataset:
             sigma = tau_sigma_exp * stat_func(np.max(intens, axis=(0,1)))
         return np.abs(intens + mu + sigma * np.random.randn(*intens.shape))
     
-    def export(self, path: str = '.', name: str = None,
+    def export(self,
+               path: str = '.',
+               name: str = None,
+               max_fields_per_file: int = None,
                verbose: bool = True,
                return_input_fields: bool = False,
                return_output_fields: bool = False,
@@ -469,40 +474,73 @@ class SimulatedSpeckleOutputDataset:
         intens = SimulatedSpeckleOutputDataset.add_intensity_noise(self.intensities, mu=0, stat_func=noise_func) if add_exp_noise else self.intensities
 
         mdict = {
-                    'phase_maps': self._phase_maps, 'intens': intens,
+                    'phase_maps': self._phase_maps,
+                    'intens': intens,
                     'degenerated_modes': self._degenerated,
                     'coupling_matrix': coupling_matrix,
                     'transfer_matrix': transfer_matrix,
                     'reshaped_transfer_matrix': self.reshaped_transfer_matrix,
-                    'length': self.length, 'N_modes': self._N_modes,
+                    'length': self.length,
+                    'N_modes': self._N_modes,
                     'macropixels_energy': self._normalized_energy_on_macropixels,
                     'wavelength': self._fiber.wavelength,
                 }
 
         if self._transf is not None:
-            mdict['intens_transf'] = SimulatedSpeckleOutputDataset.add_intensity_noise(np.square(np.abs(self._transf)), mu=0, stat_func=noise_func) if add_exp_noise else np.square(np.abs(self._transf))
+            intens_transf = SimulatedSpeckleOutputDataset.add_intensity_noise(np.square(np.abs(self._transf)), mu=0, stat_func=noise_func) if add_exp_noise else np.square(np.abs(self._transf))
+            mdict['intens_transf'] = intens_transf
         if return_input_fields:
             mdict['input_fields'] = self._input_fields
         if return_output_fields:
             mdict['fields'] = self._fields
 
+        if max_fields_per_file is None or max_fields_per_file < 2:
+            self.__file_saver(
+                data_dict=mdict,
+                file_type=file_type.lower(),
+                path=path,
+                name=name,
+                verbose=verbose,
+                )
+        else:
+            slice_list = slice_elements_by_batch(total_elements=self.length, slice_size=max_fields_per_file)
+            n_slices = len(slice_list)
+            for i_slice in range(n_slices):
+                mdict['phase_maps'] = self._phase_maps[:, :, slice_list[i_slice]]
+                mdict['intens'] = intens[:, :, slice_list[i_slice]]
+                mdict['slice_length'] = int(slice_list[i_slice].stop - slice_list[i_slice].start)
+                
+                if self._transf is not None:
+                    mdict['intens_transf'] = intens_transf[:, :, slice_list[i_slice]]
+                if return_input_fields:
+                    mdict['input_fields'] = self._input_fields[:, :, slice_list[i_slice]]
+                if return_output_fields:
+                    mdict['fields'] = self._fields[:, :, slice_list[i_slice]]
+                
+                self.__file_saver(
+                    data_dict=mdict,
+                    file_type=file_type.lower(),
+                    path=path,
+                    name=f"{name}_{i_slice + 1}_of_{n_slices}",
+                    verbose=verbose,
+                    )    
+            
+    def __file_saver(self, data_dict: dict, file_type: str, path: str, name: str, verbose: bool = True):
         if file_type.lower() == 'matlab':
             savename = os.path.join(path, f"{name}.mat")
             savemat(
                     file_name = savename,
-                    mdict = mdict,
+                    mdict = data_dict,
                 )
         elif file_type.lower() == 'numpy':
             savename = os.path.join(path, f"{name}.npy")
-            np.save(savename, mdict)
+            np.save(savename, data_dict)
         elif file_type.lower() == 'hdf5':
             savename = os.path.join(path, f"{name}.hdf5")
             with h5py.File(savename, 'w') as hf:
-                for key_name in mdict:
-                    hf.create_dataset(name=key_name, data=mdict[key_name])
-        else:
-            raise ValueError(f"Invalid file_type value. Must be in {_allowed_file_types}")
-            
+                for key_name in data_dict:
+                    hf.create_dataset(name=key_name, data=data_dict[key_name])
+                        
         if verbose:
             print(f"Dataset saved: {savename}")
     
