@@ -175,6 +175,8 @@ class MockDeformableMirror(Grid):
         self._partitions_idxs = None
         self._masked_macropixels_counts = None
         self._energy_integrated_on_macropixels = None
+        self._mask = None
+        self._correcting_pad = None
         self._idxs_to_keep = None
         self._transfer_matrix_amplitudes = None
         self._low_energy_weights_indexes = None
@@ -197,21 +199,27 @@ class MockDeformableMirror(Grid):
         if phase_map.shape != tuple(self.pixel_numbers):
             recompute_idxs = True if (phase_map.shape != self._partition_size) else False
             self._partition_size = phase_map.shape
-            self._phase_map = phase_map
-            phase_map = self._partition_to_matrix(phase_map, recompute_idxs)
+        
+        self._phase_map = phase_map
+        phase_map = self._partition_to_matrix(phase_map, recompute_idxs)
         self._field_matrix = np.abs(self._field_matrix) * np.exp(1j * phase_map)
         self._field_matrix = self.apply_mask(self._field_matrix)
+        self._correct_coherent_zeroes()
 
     def apply_amplitude_map(self, amplitude_map):
         if amplitude_map.shape != tuple(self.pixel_numbers):
             amplitude_map = self._partition_to_matrix(amplitude_map)
+        
         self._field_matrix = np.abs(amplitude_map) * np.exp(1j * self.phase)
         self._field_matrix = self.apply_mask(self._field_matrix)
+        # self._correct_coherent_zeroes()
 
     def apply_complex_map(self, complex_map):
         if complex_map.shape != tuple(self.pixel_numbers):
             complex_map = self._partition_to_matrix(complex_map)
+        
         self._field_matrix = self.apply_mask(complex_map)
+        # self._correct_coherent_zeroes()
 
     def _partition_to_matrix(self, partition: np.ndarray, recompute_partitions_idxs: bool = False):
         if recompute_partitions_idxs:
@@ -221,14 +229,22 @@ class MockDeformableMirror(Grid):
         matrix = np.repeat(partition, self._macropixel_size, axis=0)
         matrix = np.repeat(matrix, self._macropixel_size, axis=1)
         pad_amount = int((self.pixel_numbers[0] - matrix.shape[0]) // 2)
+        self._correcting_pad = pad_amount
         matrix = np.pad(matrix, pad_width=pad_amount)
         if matrix.shape != tuple(self.pixel_numbers):
             matrix = np.vstack([matrix, np.zeros(shape=(1, matrix.shape[1]))])
             matrix = np.hstack([matrix, np.zeros(shape=(matrix.shape[0], 1))])
         return matrix
     
+    def _correct_coherent_zeroes(self):
+        pad = self._correcting_pad
+        self._field_matrix[:pad, :] = 0
+        self._field_matrix[:, :pad] = 0
+        self._field_matrix[-pad:, :] = 0
+        self._field_matrix[:, -pad:] = 0
+    
     def _compute_partitions_idxs(self):
-        self._macropixel_size = int(np.ceil(self._mirror_diameter / self.pixel_size / self._partition_size[0]))
+        self._macropixel_size = int(np.floor(self._mirror_diameter / self.pixel_size / self._partition_size[0]))
         offset = int((self.pixel_numbers[0] - self._partition_size[0] * self._macropixel_size) // 2)
 
         # Partitions idxs dimensions: partition size 0, partition size 1, macropixel size, mpx rows idxs, cols idxs
