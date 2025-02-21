@@ -495,8 +495,8 @@ class SimulatedHyperspectralDiffuserDataset:
                 self._phase_maps[:, :, j, i] = phase_map
                 self._fields[:, :, j, i] = dm.field * np.exp(1j * self._diffuser_phases[j, :, :])
 
-                if verbose:
-                    print(f"Computed couple {i + 1}/{self.length}")
+            if verbose:
+                print(f"Computed couple {i + 1}/{self.length}")
 
     def compute_fresnel_transforms(self, delta_z: float, pad: float = 1, verbose: bool = True):
         """Computes the Fresnel transforms of the computed diffuser output fields."""
@@ -1040,6 +1040,412 @@ class SimulatedSpeckleOutputDataset:
         return self.intensities[:, :, idx]
 
 
+class SimulatedHyperspectralSpeckleOutputDataset:
+    """Coupling from modal decomposition on fiber LP modes, then propagation using a random mode coupling matrix
+
+       Can use either degenerated modes coupling or non-degenerated mode couplings:
+            - With degenerated mode-coupling (default), the system has a an existing transfer matrix since the degenerated mode basis orientation is fixed.
+            - With non-degenerated mode-coupling, the system has no existing transfer matrix. The reason is that the degenerated mode basis
+              orientation is uncontrolled and might change between each modal decompostion.
+    """
+
+    def __init__(self, fibers: list[GrinFiber], grid: Grid, length: int = 10, N_modes: list[int] = None, noise_std: float = 0.0,
+                 degen: bool = True) -> None:
+        # Fill to max number of modes if N_modes is None
+        if N_modes is None:
+            if degen:
+                self._N_modes = [fiber._N_modes_degen for fiber in fibers]
+            else:
+                self._N_modes = [fiber._N_modes for fiber in fibers]
+        else: # Limit to the max number of available modes for each fiber
+            if degen:
+                self._N_modes = [fiber._N_modes_degen if N_modes[i] > fiber._N_modes_degen else N_modes[i] for i, fiber in enumerate(fibers)]
+            else:
+                self._N_modes = [fiber._N_modes if N_modes[i] > fiber._N_modes else N_modes[i] for i, fiber in enumerate(fibers)]
+
+        self._length = length
+        self._grid = grid
+        self._wavelengths = [fiber.wavelength for fiber in fibers]
+        self._fibers = fibers
+        self._noise_std = noise_std
+        self._fields = None
+        self._phase_dims = None
+        self._phase_maps = None
+        self._height_maps = None
+        self._normalized_energy_on_macropixels = None
+        self._degenerated = degen
+        self._transfer_matrices = None
+        self._input_modes_coeffs_matrix = None
+        self._transf = None
+        self._low_energy_weights_indexes = None
+
+        # Define coupling matrices -> The fiber with the most modes is going to be used for that task
+        # Then the common modes are going to be kept for the fibers with a lower number of modes
+        idx_lambda_min = np.argmin(self._wavelengths)
+        biggest_common_coupling_matrix = self._fibers[idx_lambda_min].modes_coupling_matrix(complex=complex, full=False, degen=degen)
+        self._coupling_matrices = []
+        for i in range(len(self._wavelengths)):
+            self._coupling_matrices.append(
+                np.copy(biggest_common_coupling_matrix[:self._N_modes[i], :self._N_modes[i]])
+            )
+
+        self._default_name = f"synth_mmf_dset_lambdas={[int(wavelength * 1e9) for wavelength in self._wavelengths]}nm"
+        self._coupling_class = GrinFiberCoupler
+        self._coupling_degen_class = GrinFiberDegenCoupler
+
+    def compute(self, phases_dim: tuple[int, int] = (6, 6), verbose: bool = True):
+        """Computes dataset from random phases applied to partition and their associated fiber output complex field.
+
+           It is slow since the mode decomposition and recomposition is computed for each phase map.
+           Use compute_from_transfer_matrix method for a much faster version that provides the same result.
+        """
+        self._phase_dims = phases_dim
+        self._height_maps = np.zeros(shape=(phases_dim + (self.length,)))
+        self._phase_maps = np.zeros(shape=(phases_dim + (len(self._wavelengths), self.length,)))
+        self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (len(self._wavelengths), self.length,)),
+                                dtype=np.complex128)
+        self._input_fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (len(self._wavelengths), self.length,)),
+                                      dtype=np.complex128)
+        self._transfer_matrices = []
+
+        dm = MockDeformableMirror(
+            pixel_size=self._grid.pixel_size,
+            pixel_numbers=self._grid.pixel_numbers,
+            diameter=2 * self._fibers[0].radius)
+        beam = GaussianBeam(self._grid)
+        beam.compute(width=2 * self._fibers[0].radius)
+        beam.normalize_by_energy()
+        dm.apply_amplitude_map(beam.amplitude)
+
+        for i in range(self.length):
+            phase_map = -np.pi + 2 * np.pi * np.random.rand(*phases_dim)
+            height_map = phase_map * self._wavelengths[0] / (2 * np.pi)
+            self._height_maps[:, :, i] = height_map
+
+            for j in range(len(self._wavelengths)):
+                phase_map = 2 * np.pi * height_map / self._wavelengths[j]
+                dm.apply_phase_map(phase_map)
+
+                if i == 0:
+                    self._compute_transfer_matrices(dm, beam.grid)
+                    self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
+
+                if self._degenerated:
+                    coupled_in = self._coupling_degen_class(dm._field_matrix, self._grid, fiber=self._fibers[j],
+                                                            N_modes=self._N_modes[j])
+                else:
+                    coupled_in = self._coupling_class(dm._field_matrix, self._grid, fiber=self._fibers[j],
+                                                    N_modes=self._N_modes[j])
+                propagated_field = coupled_in.propagate(matrix=self._coupling_matrices[j])
+
+                self._input_fields[:, :, j, i] = dm.field
+                self._phase_maps[:, :, j, i] = phase_map
+                self._fields[:, :, j, i] = propagated_field
+
+            if verbose:
+                print(f"Computed couple {i + 1}/{self.length}")
+
+    def compute_from_transfer_matrix(self, phases_dim: tuple[int, int] = (6, 6), verbose: bool = True,
+                                     ref_phi: int = None):
+        """Computes dataset from random phases applied to partition and their associated fiber output complex field.
+
+           It is fast since the output field is obtained via matrix multiplication from the computed transfer matrix.
+        """
+        self._phase_dims = phases_dim
+        self._height_maps = np.zeros(shape=(phases_dim + (self.length,)))
+        self._phase_maps = np.zeros(shape=(phases_dim + (len(self._wavelengths), self.length,)))
+        self._fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (len(self._wavelengths), self.length,)),
+                                dtype=np.complex128)
+        self._input_fields = np.zeros(shape=(tuple(self._grid.pixel_numbers) + (len(self._wavelengths), self.length,)),
+                                      dtype=np.complex128)
+        self._transfer_matrices = []
+
+        dm = MockDeformableMirror(
+            pixel_size=self._grid.pixel_size,
+            pixel_numbers=self._grid.pixel_numbers,
+            diameter=2 * self._fibers[0].radius)
+        beam = GaussianBeam(self._grid)
+        beam.compute(width=2 * self._fibers[0].radius)
+        beam.normalize_by_energy()
+        dm.apply_amplitude_map(beam.amplitude)
+
+        phase_map = -np.pi + 2 * np.pi * np.random.rand(*phases_dim)
+        dm.apply_phase_map(phase_map)
+        self._compute_transfer_matrices(dm, beam.grid)
+        tms = self.reshaped_transfer_matrices
+        self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
+
+        for i in range(self.length):
+            phase_map = -np.pi + 2 * np.pi * np.random.rand(*phases_dim)
+            if ref_phi is not None:
+                phase_map[np.unravel_index(ref_phi, phase_map.shape)] = 0
+            height_map = phase_map * self._wavelengths[0] / (2 * np.pi)
+            self._height_maps[:, :, i] = height_map
+
+            for j in range(len(self._wavelengths)):
+                phase_map = 2 * np.pi * height_map / self._wavelengths[j]
+                x = np.sqrt(self._normalized_energy_on_macropixels) * np.exp(1j * phase_map)
+                x = x.flatten()
+                if len(self._low_energy_weights_indexes) > 0:
+                    x = np.delete(x, self._low_energy_weights_indexes)
+                y = (tms[j] @ x).reshape(self._grid.pixel_numbers)
+
+                self._phase_maps[:, :, j, i] = phase_map
+                self._fields[:, :, j, i] = y
+
+            if verbose:
+                print(f"Computed couple {i + 1}/{self.length}")
+
+    def _compute_transfer_matrices(self, dm: MockDeformableMirror, grid: Grid):
+        self._transfer_matrices = []
+        for i in range(len(self._wavelengths)):
+            self._compute_transfer_matrix(dm, grid, wavelength_idx=i)
+            self._transfer_matrices.append(self._transfer_matrix)
+
+    def _compute_transfer_matrix(self, dm: MockDeformableMirror, grid: Grid, wavelength_idx: int):
+        dm.compute_transfer_matrix_amplitudes()
+        self._low_energy_weights_indexes = dm._low_energy_weights_indexes
+
+        self._input_modes_coeffs_matrix = np.zeros(
+            shape=(dm._transfer_matrix_amplitudes.shape[0], self._N_modes[wavelength_idx]),
+            dtype=np.complex128,
+        )
+        self._transfer_matrix = np.zeros(
+            shape=(dm._transfer_matrix_amplitudes.shape[0], grid.pixel_numbers[0], grid.pixel_numbers[1]),
+            dtype=np.complex128,
+        )
+        
+        for i in range(dm._transfer_matrix_amplitudes.shape[0]):
+            if self._degenerated:
+                coupled_in = self._coupling_degen_class(
+                    dm._transfer_matrix_amplitudes[i, ...], grid,
+                    fiber=self._fibers[wavelength_idx], N_modes=self._N_modes[wavelength_idx],
+                )
+            else:
+                coupled_in = self._coupling_class(
+                    dm._transfer_matrix_amplitudes[i, ...], grid,
+                    fiber=self._fibers[wavelength_idx], N_modes=self._N_modes[wavelength_idx],
+                )
+            self._input_modes_coeffs_matrix[i, :] = coupled_in.modes_coeffs
+            propagated_field = coupled_in.propagate(matrix=self._coupling_matrices[wavelength_idx])
+            self._transfer_matrix[i, :, :] = propagated_field
+            print(f"Computed TM row {i + 1}/{dm._transfer_matrix_amplitudes.shape[0]}")
+
+    def compute_fresnel_transforms(self, delta_z: float, pad: float = 1, verbose: bool = True):
+        """Computes the Fresnel transforms of the computed fiber output complex fields."""
+        if self._fields is not None:
+            self._transf = np.zeros_like(self._fields)
+            for i in range(self.length):
+                self._transf[:, :, i] = fresnel_transform(self._fields[:, :, i], self._grid, delta_z=delta_z, pad=pad)
+                if verbose:
+                    print(f"Computed Fresnel {i + 1}/{self.length}")
+        else:
+            raise ValueError("Run compute or compute_from_transfer_matrix method first!")
+
+    def compute_fourier_transforms(self, pad: float = 1, verbose: bool = True):
+        """Computes the Fourier transforms of the computed fiber output complex fields."""
+        if self._fields is not None:
+            self._transf = np.zeros_like(self._fields)
+            for i in range(self.length):
+                self._transf[:, :, i] = fourier_transform(self._fields[:, :, i], pad=pad)
+                if verbose:
+                    print(f"Computed Fourier {i + 1}/{self.length}")
+        else:
+            raise ValueError("Run compute or compute_from_transfer_matrix method first!")
+
+    def compute_fresnel_and_fourier_transforms(self, fresnel_delta_z: float, fourier_pad: float = 1,
+                                               fresnel_pad: float = 1):
+        if self._fields is not None:
+            self._transf = np.zeros(shape=(self._fields.shape[0], 2 * self._fields.shape[1], self._fields.shape[2]),
+                                    dtype=np.complex128)
+            for i in range(self.length):
+                fres = fresnel_transform(self._fields[:, :, i], self._grid, delta_z=fresnel_delta_z, pad=fresnel_pad)
+                four = fourier_transform(self._fields[:, :, i], pad=fourier_pad)
+                self._transf[:, :, i] = np.concatenate((fres, four), axis=1)
+        else:
+            raise ValueError("Run compute or compute_from_transfer_matrix method first!")
+
+    def reshape_transfer_matrix(self, tm3d) -> np.ndarray:
+        tm = self._transfer_matrix.copy()
+        tm = np.swapaxes(tm, 0, 2)
+        tm = np.swapaxes(tm, 0, 1)
+        tm = tm.reshape(np.prod(tm.shape[:-1]), tm.shape[-1])
+        return tm
+    
+    def plot_example(self, figsize: tuple[int, int] = (15, 5), as_rgb: bool = False):
+        if as_rgb:
+            self._plot_example_as_rgb(figsize=figsize)
+        else:
+            self._plot_example_as_channels(figsize=figsize)
+
+    def _plot_example_as_channels(self, figsize: tuple[int, int] = (15, 5)):
+        idx = np.random.randint(self.length)
+        formatter = ticker.ScalarFormatter(useMathText=True)  # Uses scientific notation
+        formatter.set_powerlimits((-1, 1))  # Forces exponent notation when needed
+        max_plots = len(self._wavelengths)
+
+        plt.figure(figsize=figsize)
+        for i in range(len(self._wavelengths)):
+            plt.subplot(1, max_plots, i + 1)
+            plt.imshow(np.square(np.abs(self._fields[..., i, idx])), cmap='gray')
+            plt.title(f"Speckle intensity @{int(self._wavelengths[i] * 1e9)}nm")
+            cbar = plt.colorbar(location='bottom')
+            cbar.ax.xaxis.set_major_formatter(formatter)
+            plt.axis('off')
+
+        plt.tight_layout()
+
+    def _plot_example_as_rgb(self, figsize: tuple[int, int] = (15, 5)):
+        idx = np.random.randint(self.length)
+        formatter = ticker.ScalarFormatter(useMathText=True)  # Uses scientific notation
+        formatter.set_powerlimits((-1, 1))  # Forces exponent notation when needed
+        max_plots = 1
+
+        plt.figure(figsize=figsize)
+        # Create RGB image from propagated intensity maps
+        rgb_image = np.zeros((*self._fields.shape[:2], 3))
+        rgb_order = [(1, 0, 0), (0, 1, 0), (0, 0, 1)]  # R, G, B for wavelengths
+
+        for i in range(min(3, len(self._wavelengths))):
+            intensity = np.square(np.abs(self._fields[..., i, idx]))
+            normalized_intensity = intensity / np.max(intensity)
+            rgb_image[:, :, i] += normalized_intensity
+        rgb_image /= np.max(rgb_image)  # Normalize full RGB image
+
+        plt.imshow(rgb_image)
+        plt.title(f"Speckle intensity\nR={int(self._wavelengths[0] * 1e9)}nm, G={int(self._wavelengths[1] * 1e9)}nm, B={int(self._wavelengths[2] * 1e9)}nm")
+        plt.axis('off')
+
+        plt.tight_layout()
+
+    @property
+    def reshaped_transfer_matrices(self) -> list[np.ndarray]:
+        return [self.reshape_transfer_matrix(self._transfer_matrices[i]) for i in range(len(self._transfer_matrices))]
+
+    @property
+    def length(self):
+        return self._length
+
+    @property
+    def phases_size(self):
+        return np.prod(np.array(list(self._phase_dims)))
+
+    @property
+    def intensities(self):
+        return np.square(np.abs(self._fields))
+
+    @staticmethod
+    def add_intensity_noise(intens, mu: float = None, sigma: float = None, tau_mu_exp: float = 228,
+                            tau_sigma_exp: float = 1.258e-4, stat_func: callable = np.median):
+        """Intensity matrix should have size: m x m x N"""
+        if mu is None:
+            mu = tau_mu_exp * stat_func(np.max(intens, axis=(0, 1)))
+        if sigma is None:
+            sigma = tau_sigma_exp * stat_func(np.max(intens, axis=(0, 1)))
+        return np.abs(intens + mu + sigma * np.random.randn(*intens.shape))
+
+    def export(self,
+               path: str = '.',
+               name: str = None,
+               max_fields_per_file: int = None,
+               verbose: bool = True,
+               file_type: str = 'matlab',
+               ):
+        """ Export the generated dataset to a matfile or numpy file.
+
+            Input arguments:
+                - `path`: exported data file base path (optional, str, default = current path)
+                - `name`: exported data file base name (optional, str, default = appropriately generated)
+                - `file_type`: defines data file type (optional, str, default = `'matlab'`, available = `{'matlab', 'numpy', 'hdf5'}`)
+
+            The exported matfile has the following fields:
+                - `phase_maps`: Phase maps used to generate the corresponding fiber-output optical field.
+                - `intens`: Intensity of the fiber-output optical field (square modulus).
+                - `degenerated_modes`: Boolean indicating if the modes decomposition has been carried on fixed degenerated modes orientations.
+                - `coupling_matrix`: Fiber modes-coefficients coupling matrix, that has been used to simulated modes propagation in the fiber.
+                - `transfer_matrix`: Transfer matrix in image shape. Has dimensions Nact x Nx x Ny.
+                - `reshaped_transfer_matrix`: Reshaped transfer matrix for simple matrix products. Has dimensions Nact x (Nx x Ny).
+                - `length`: Dataset length.
+                - `wavelength`: Illumination wavelength.
+                - `N_modes`: Number of non-degerated LP modes allowed to propagate in the simulated fiber.
+                - `macropixels_energy`: Energy E on macropixels for the selected deformable mirror partitionning scheme. Use sqrt(E) weights on phase_maps to replicate output field.
+                - `intens_transf`: Optional field. Intensity (square modulus) of the transform (Fresnel or Fourier) of the fiber-output optical field.
+                - `fields`: Optional field. Fiber-output optical fields. Returned if `return_output_fields` is set to `True`.
+                - `input_fields`: Optional field. Fiber-input optical fields. Returned if `return_input_fields` is set to `True`.
+        """
+
+        _allowed_file_types = {'matlab', 'numpy', 'hdf5'}
+        if file_type.lower() not in _allowed_file_types:
+            raise ValueError(f"Invalid file_type value. Must be in {_allowed_file_types}")
+
+        if name is None:
+            default_name = f"{self._default_name}_degen={self._degenerated}_len={self.length}_mirr={self.phases_size}"
+
+        mdict = {
+            'phase_maps': self._phase_maps,
+            'height_maps': self._height_maps,
+            'fields': self._fields,
+            'degenerated_modes': self._degenerated,
+            'coupling_matrices': self._coupling_matrices,
+            'transfer_matrices': self._transfer_matrices,
+            'reshaped_transfer_matrices': self.reshaped_transfer_matrices,
+            'length': self.length,
+            'N_modes': self._N_modes,
+            'macropixels_energy': self._normalized_energy_on_macropixels,
+            'wavelengths': self._wavelengths,
+        }
+
+
+        if max_fields_per_file is None or max_fields_per_file < 2:
+            self.__file_saver(
+                data_dict=mdict,
+                file_type=file_type.lower(),
+                path=path,
+                name=name,
+                verbose=verbose,
+            )
+        else:
+            slice_list = slice_elements_by_batch(total_elements=self.length, slice_size=max_fields_per_file)
+            n_slices = len(slice_list)
+            keys = ['phase_maps', 'height_maps', 'fields']
+            for i_slice in range(n_slices):
+                mdict['phase_maps'] = self._phase_maps[..., slice_list[i_slice]]
+                mdict['height_maps'] = self._height_maps[..., slice_list[i_slice]]
+                mdict['fields'] = self._fields[..., slice_list[i_slice]]
+
+                self.__file_saver(
+                    data_dict=mdict,
+                    file_type=file_type.lower(),
+                    path=path,
+                    name=f"{name}_{i_slice + 1}_of_{n_slices}",
+                    verbose=verbose,
+                )
+
+    def __file_saver(self, data_dict: dict, file_type: str, path: str, name: str, verbose: bool = True):
+        if file_type.lower() == 'matlab':
+            savename = os.path.join(path, f"{name}.mat")
+            savemat(
+                file_name=savename,
+                mdict=data_dict,
+            )
+        elif file_type.lower() == 'numpy':
+            savename = os.path.join(path, f"{name}.npy")
+            np.save(savename, data_dict)
+        elif file_type.lower() == 'hdf5':
+            savename = os.path.join(path, f"{name}.hdf5")
+            with h5py.File(savename, 'w') as hf:
+                for key_name in data_dict:
+                    hf.create_dataset(name=key_name, data=data_dict[key_name])
+
+        if verbose:
+            print(f"Dataset saved: {savename}")
+
+    def __getitem__(self, idx):
+        return self.intensities[:, :, idx]
+
+
+
+
 class SimulatedGrinSpeckleOutputDataset(SimulatedSpeckleOutputDataset):
     """Coupling from modal decomposition on GRIN fiber LP modes, then propagation using a random mode coupling matrix
     
@@ -1072,6 +1478,24 @@ class SimulatedStepIndexSpeckleOutputDataset(SimulatedSpeckleOutputDataset):
         super().__init__(fiber=fiber, grid=grid, length=length, N_modes=N_modes, noise_std=noise_std, degen=degen)
         self._coupling_matrix = self._fiber.modes_coupling_matrix(complex=complex, full=True, degen=degen)
         self._default_name = f"synth_dset_step_lambda={self._fiber.wavelength * 1e9:.0f}nm_Nmodes={self._N_modes}"
+        self._coupling_class = StepIndexFiberCoupler
+        self._coupling_degen_class = StepIndexFiberDegenCoupler
+
+
+class SimulatedHyperspectralGrinSpeckleOutputDataset(SimulatedHyperspectralSpeckleOutputDataset):
+
+    def __init__(self, fibers, grid, length = 10, N_modes = None, noise_std = 0, degen = True):
+        super().__init__(fibers, grid, length, N_modes, noise_std, degen)
+        # self._default_name = f"synth_dset_grin_lambda={self._fiber.wavelength * 1e9:.0f}nm_Nmodes={self._N_modes}"
+        self._coupling_class = GrinFiberCoupler
+        self._coupling_degen_class = GrinFiberDegenCoupler
+
+
+class SimulatedHyperspectralStepIndexSpeckleOutputDataset(SimulatedHyperspectralSpeckleOutputDataset):
+
+    def __init__(self, fibers, grid, length = 10, N_modes = None, noise_std = 0, degen = True):
+        super().__init__(fibers, grid, length, N_modes, noise_std, degen)
+        # self._default_name = f"synth_dset_grin_lambda={self._fiber.wavelength * 1e9:.0f}nm_Nmodes={self._N_modes}"
         self._coupling_class = StepIndexFiberCoupler
         self._coupling_degen_class = StepIndexFiberDegenCoupler
 
