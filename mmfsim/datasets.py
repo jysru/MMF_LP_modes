@@ -1381,7 +1381,7 @@ class SimulatedHyperspectralSpeckleOutputDataset:
             raise ValueError(f"Invalid file_type value. Must be in {_allowed_file_types}")
 
         if name is None:
-            default_name = f"{self._default_name}_degen={self._degenerated}_len={self.length}_mirr={self.phases_size}"
+            name = f"{self._default_name}_degen={self._degenerated}_len={self.length}_mirr={self.phases_size}"
 
         mdict = {
             'phase_maps': self._phase_maps,
