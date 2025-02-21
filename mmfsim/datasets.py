@@ -1121,14 +1121,16 @@ class SimulatedHyperspectralSpeckleOutputDataset:
             phase_map = -np.pi + 2 * np.pi * np.random.rand(*phases_dim)
             height_map = phase_map * self._wavelengths[0] / (2 * np.pi)
             self._height_maps[:, :, i] = height_map
+            phase_map = 2 * np.pi * height_map / self._wavelengths[0]
+            dm.apply_phase_map(phase_map)
+
+            if i == 0:
+                self._compute_transfer_matrices(dm, beam.grid)
+                self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
 
             for j in range(len(self._wavelengths)):
                 phase_map = 2 * np.pi * height_map / self._wavelengths[j]
                 dm.apply_phase_map(phase_map)
-
-                if i == 0:
-                    self._compute_transfer_matrices(dm, beam.grid)
-                    self._normalized_energy_on_macropixels = dm.normalized_energies_on_macropixels
 
                 if self._degenerated:
                     coupled_in = self._coupling_degen_class(dm._field_matrix, self._grid, fiber=self._fibers[j],
@@ -1486,7 +1488,7 @@ class SimulatedHyperspectralGrinSpeckleOutputDataset(SimulatedHyperspectralSpeck
 
     def __init__(self, fibers, grid, length = 10, N_modes = None, noise_std = 0, degen = True):
         super().__init__(fibers, grid, length, N_modes, noise_std, degen)
-        # self._default_name = f"synth_dset_grin_lambda={self._fiber.wavelength * 1e9:.0f}nm_Nmodes={self._N_modes}"
+        self._default_name = f"synth_grin_dset_lambdas={[int(wavelength * 1e9) for wavelength in self._wavelengths]}nm"
         self._coupling_class = GrinFiberCoupler
         self._coupling_degen_class = GrinFiberDegenCoupler
 
@@ -1495,6 +1497,7 @@ class SimulatedHyperspectralStepIndexSpeckleOutputDataset(SimulatedHyperspectral
 
     def __init__(self, fibers, grid, length = 10, N_modes = None, noise_std = 0, degen = True):
         super().__init__(fibers, grid, length, N_modes, noise_std, degen)
+        self._default_name = f"synth_step_dset_lambdas={[int(wavelength * 1e9) for wavelength in self._wavelengths]}nm"
         # self._default_name = f"synth_dset_grin_lambda={self._fiber.wavelength * 1e9:.0f}nm_Nmodes={self._N_modes}"
         self._coupling_class = StepIndexFiberCoupler
         self._coupling_degen_class = StepIndexFiberDegenCoupler
