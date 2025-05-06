@@ -340,7 +340,13 @@ class DegenGrinSpeckle(GrinSpeckle):
             f"\n\t End\n\n"
         )
 
-    def plot_coefficients(self):
+    def plot_coefficients(self, orients=True):
+        if orients:
+            return self.plot_coefficients_with_orients()
+        else:
+            return self.plot_coefficients_without_orients()
+    
+    def plot_coefficients_with_orients(self):
         nm = self.fiber._neff_hnm[:self.N_modes, 2:].astype(int)
         nm_strings = []
         k, i = 0, 0
@@ -370,6 +376,46 @@ class DegenGrinSpeckle(GrinSpeckle):
             f"Energy percentage on LP modes "
             f"({self.N_modes} modes, total energy: {self.total_coeffs_intensity * 100:2.1f}%)"
         )
+        return (fig, ax, pl)
+    
+    def plot_coefficients_without_orients(self):
+        nm = self.fiber._neff_hnm[:self.N_modes, 2:].astype(int)
+        nm_strings = []
+        k, i = 0, 0
+        coeffs = []
+
+        while k < self.N_modes:
+            if nm[i, 0] != 0:
+                nm_strings.append(f"{nm[i,0]:d},{nm[i,1]:d}")
+                coeffs.append(self.coeffs_intensity[k] + self.coeffs_intensity[k+1])
+                k += 2
+            else:
+                nm_strings.append(f"{nm[i,0]:d},{nm[i,1]:d}")
+                coeffs.append(self.coeffs_intensity[k])
+                k += 1
+                
+            i += 1
+
+        coeffs = np.array(coeffs)       
+        
+        x = np.arange(len(nm_strings[:self.N_modes]))
+        fig = plt.figure(figsize=(15,4))
+        ax = plt.gca()
+        pl = plt.bar(x[:coeffs.shape[0]], coeffs * 100)
+        ax_t = ax.secondary_xaxis('top')
+        ax_t.tick_params(axis='x', direction='in')
+        ax_t.set_xlabel("LP degenerated mode linear index")
+
+        ax.set_xlabel(r"LP$_{n,m}$ mode")
+        ax.set_xticks(x, nm_strings[:self.N_modes], rotation='vertical')
+        ax.set_ylabel("Energy percentage [%]")
+        ax.set_title(
+            f"Energy percentage on LP modes "
+            f"({self.N_modes} modes, total energy: {self.total_coeffs_intensity * 100:2.1f}%)"
+        )
+
+        for label in ax.get_xticklabels():
+            label.set_rotation(45)
         return (fig, ax, pl)
 
 
