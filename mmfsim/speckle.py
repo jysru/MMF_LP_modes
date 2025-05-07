@@ -342,7 +342,7 @@ class DegenGrinSpeckle(GrinSpeckle):
             f"\n\t End\n\n"
         )
 
-    def show_coefficients(self, as_heatmap: bool = False, figsize = (8, 5)):
+    def show_coefficients(self, as_heatmap: bool = False, figsize = (8, 5), log: bool = True):
         nm = self.fiber._neff_hnm[:self.N_modes, 2:].astype(int)
         k, i = 0, 0
         lp_modes: list[dict] = []
@@ -387,17 +387,19 @@ class DegenGrinSpeckle(GrinSpeckle):
             # Create the heatmap
             plt.figure(figsize=figsize)
             sns.heatmap(
-                pivot,
+                10 * np.log10(pivot + 1e-9) if log else pivot,
                 annot=True,
-                fmt=".2f",
-                cmap="viridis",
-                cbar_kws={'label': 'Coefficient'},
+                fmt=".1f",
+                cmap="inferno",
+                cbar_kws={'label': 'Intensity coefficient [dB]' if log else 'Intensity coefficient'},
                 linewidths=0.5,
                 linecolor='gray',
+                vmin=-30 if log else 0,
+                vmax=0 if log else 1,
             )
 
             # Label and title
-            plt.title(f"Heatmap of the LPnm modes intensity coefficients (sum={pivot.sum().sum():.2f})")
+            plt.title(f"Heatmap of the LPnm modes coefficients (sum={pivot.sum().sum()*100:.2f}%)")
             plt.xlabel("m")
             plt.ylabel("n")
 
