@@ -1,5 +1,7 @@
 import numpy as np
 import matplotlib.pyplot as plt
+import pandas as pd
+import seaborn as sns
 
 from mmfsim.grid import Grid
 from mmfsim.fiber import GrinFiber, StepIndexFiber
@@ -339,6 +341,73 @@ class DegenGrinSpeckle(GrinSpeckle):
             f"\t - Decomposition phases coefficients:\n{np.angle(coeffs)}\n"
             f"\n\t End\n\n"
         )
+
+    def show_coefficients(self, as_heatmap: bool = False, figsize = (8, 5)):
+        nm = self.fiber._neff_hnm[:self.N_modes, 2:].astype(int)
+        k, i = 0, 0
+        lp_modes: list[dict] = []
+
+        while k < self.N_modes:
+            if nm[i, 0] != 0:
+                lp_modes.append(
+                    dict(
+                        n = nm[i, 0],
+                        m = nm[i, 1], 
+                        coeff_intensity = self.coeffs_intensity[k] + self.coeffs_intensity[k+1]),
+                )
+                k += 2
+            else:
+                lp_modes.append(
+                    dict(
+                        n = nm[i, 0],
+                        m = nm[i, 1], 
+                        coeff_intensity = self.coeffs_intensity[k]),
+                )
+                k += 1
+                
+            i += 1
+
+        # Optional: Create a column with full mode labels (like LP11a)
+        def format_col_label(row):
+            return f"{row['m']}"
+        
+        # Create the DataFrame
+        df = pd.DataFrame(lp_modes)
+
+        df["col"] = df.apply(format_col_label, axis=1)
+
+        # Pivot the table: n as index, m+orientation as columns
+        pivot = df.pivot(index="n", columns="m", values="coeff_intensity")
+
+        # Round to 2 decimals, convert to string, and fill NaNs with ""
+        pivot_fmt = pivot.applymap(lambda x: f"{x:.1e}" if pd.notnull(x) else "")
+
+        # Display the matrix-style table
+        if as_heatmap:
+            # Create the heatmap
+            plt.figure(figsize=figsize)
+            sns.heatmap(
+                pivot,
+                annot=True,
+                fmt=".2f",
+                cmap="viridis",
+                cbar_kws={'label': 'Coefficient'},
+                linewidths=0.5,
+                linecolor='gray',
+            )
+
+            # Label and title
+            plt.title(f"Heatmap of the LPnm modes intensity coefficients (sum={pivot.sum().sum():.2f})")
+            plt.xlabel("m")
+            plt.ylabel("n")
+
+            # Show the plot
+            plt.tight_layout()
+            plt.show()
+        else:
+            print("LPnm modes intensity coefficients")
+            print(pivot_fmt)
+    
 
     def plot_coefficients(self, orients=True):
         if orients:
