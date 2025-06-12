@@ -166,10 +166,24 @@ class GrinFiber(Fiber):
         sorted_storage = sorted_storage[:self._N_modes] if len(sorted_storage) > self._N_modes else sorted_storage
         self._neff_hnm = np.asarray(sorted_storage)
     
-    def modes_coupling_matrix(self, complex: bool = False, degen: bool = False, full: bool = False, decay_width: float = None):
+    def modes_coupling_matrix(self, complex: bool = False, degen: bool = False, full: bool = False, toeplitz: bool = True, decay_width: float = None):
         if full:
             n_modes = self._N_modes_degen if degen else self._N_modes
-            return matproc.square_random_toeplitz(n_modes, complex=complex, decay_width=decay_width)
+            if toeplitz:
+                return matproc.square_random_toeplitz(n_modes, complex=complex, decay_width=decay_width)
+            else:
+                def random_hermitian(n):
+                    M = np.random.rand(n, n) * np.exp(1j * 2 * np.pi * np.random.randn(n, n))
+                    T = (M + M.conj().T) / 2
+                    return T
+                
+                H = random_hermitian(n_modes)
+                eigvals, eigvecs = np.linalg.eigh(H)
+                # Replace eigenvalues with ±1 randomly
+                signs = np.random.choice([-1, 1], size=n_modes)
+                Lambda = np.diag(signs)
+                T = eigvecs @ Lambda @ eigvecs.conj().T
+                return T
         else:
             return self._group_coupling_matrix(complex=complex, degen=degen)
 
