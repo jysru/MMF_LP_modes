@@ -28,8 +28,8 @@ class GrinLPMode():
         self._y = grid.y
         self._centers = grid.offsets
 
-        fac_n = np.math.factorial(self._fn)
-        fac_m_plus_n = np.math.factorial(self._fm + self._fn)
+        fac_n = sp.factorial(self._fn)
+        fac_m_plus_n = sp.factorial(self._fm + self._fn)
 
         delta0m = 1 if self._fm==0 else 0
         epsilon_mn = np.pi * np.square(fiber.radius) * fac_m_plus_n * (1 + delta0m) / (2 * fiber._V * fac_n)
@@ -38,7 +38,7 @@ class GrinLPMode():
         Lmn = np.zeros(shape=(grid.pixel_numbers[0], grid.pixel_numbers[1], self._fn + 1))
         for s in range(self._fn + 1):
             num = fac_m_plus_n * np.power(-1, s) * np.power(ro, 2 * s)
-            denom = np.math.factorial(self._fm + s) * np.math.factorial(self._fn - s) * np.math.factorial(s)
+            denom = sp.factorial(self._fm + s) * sp.factorial(self._fn - s) * sp.factorial(s)
             Lmn[:, :, s] = num / denom
         Lmn = np.sum(Lmn, axis=2)
 
