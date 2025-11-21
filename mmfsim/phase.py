@@ -25,14 +25,14 @@ class Phase(ABC):
     def plot(self, cmap: str = 'hsv', extent_coeff: float = 1e6):
         extent = np.array([np.min(self.grid.x), np.max(self.grid.x), np.min(self.grid.y), np.max(self.grid.y)]) * extent_coeff
 
-        fig = plt.figure()
+        # fig = plt.figure()
         ax = plt.gca()
         pl = plt.imshow(self.phase, cmap=cmap, extent=extent)
         ax.set_xlabel("x [um]")
         ax.set_ylabel("y [um]")
         ax.set_title(f"Phase")
         plt.colorbar(pl, ax=ax)
-        return (fig, ax, pl)
+        # return (fig, ax, pl)
     
     def add(self, phase):
         self.phase = np.angle(np.exp(1j * (self.phase + phase)))
